@@ -32,17 +32,15 @@ pub fn extract_backlinks(node: &serde_json::Value) -> Vec<String> {
     ids
 }
 
-#[tauri::command]
-pub fn save_note(
-    state: tauri::State<AppState>,
-    id: String,
-    title: String,
-    folder: String,
-    content: String,
+pub fn save_note_inner(
+    conn: &rusqlite::Connection,
+    id: &str,
+    title: &str,
+    folder: &str,
+    content: &str,
 ) -> Result<(), String> {
-    let conn = state.db.lock().map_err(|e| e.to_string())?;
     let content_json: serde_json::Value =
-        serde_json::from_str(&content).map_err(|e| e.to_string())?;
+        serde_json::from_str(content).map_err(|e| e.to_string())?;
     let text_body = extract_text(&content_json);
     let word_count = text_body.split_whitespace().count() as i64;
     let backlink_ids = extract_backlinks(&content_json);
@@ -70,6 +68,18 @@ pub fn save_note(
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn save_note(
+    state: tauri::State<AppState>,
+    id: String,
+    title: String,
+    folder: String,
+    content: String,
+) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    save_note_inner(&conn, &id, &title, &folder, &content)
 }
 
 #[cfg(test)]
@@ -192,24 +202,8 @@ mod tests {
                 }]
             }]
         });
-        let content_str = content.to_string();
-        let text_body = super::extract_text(&content);
-        let backlinks = super::extract_backlinks(&content);
 
-        conn.execute(
-            "INSERT INTO notes (id, title, folder, content, text_body, word_count)
-             VALUES ('source-id', 'Source', 'inbox', ?1, ?2, 0)",
-            rusqlite::params![content_str, text_body],
-        ).unwrap();
-        conn.execute(
-            "DELETE FROM note_edges WHERE a_id = 'source-id' AND kind = 'explicit'", [],
-        ).unwrap();
-        for id in &backlinks {
-            conn.execute(
-                "INSERT OR IGNORE INTO note_edges (a_id, b_id, kind) VALUES ('source-id', ?1, 'explicit')",
-                rusqlite::params![id],
-            ).unwrap();
-        }
+        super::save_note_inner(&conn, "source-id", "Source", "inbox", &content.to_string()).unwrap();
 
         let count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM note_edges WHERE a_id='source-id' AND b_id='target-id'",
