@@ -2,9 +2,7 @@ import { test, expect } from '@playwright/test'
 
 // Full E2E requires a compiled Tauri debug binary at src-tauri/target/debug/excursus2
 // Build with: npm run tauri build -- --debug
-test.describe('note backlink creates graph edge', () => {
-  test.skip(true, 'requires built Tauri binary — run: npm run tauri build -- --debug')
-
+test.describe.skip('note backlink creates graph edge', () => {
   test('backlink inserted via [[ picker appears as graph edge', async ({ page }) => {
     // 1. Navigate to app (Tauri loads at tauri://localhost)
     await page.goto('tauri://localhost')

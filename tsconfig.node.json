@@ -7,7 +7,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
-    "types": ["node", "@playwright/test", "vitest/globals"]
+    "types": ["node", "@playwright/test"]
   },
   "include": ["vite.config.ts", "playwright.config.ts", "tests"]
 }
