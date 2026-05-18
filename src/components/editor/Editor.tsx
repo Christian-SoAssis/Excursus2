@@ -7,6 +7,8 @@ import { MathBlock } from './extensions/MathBlock'
 import { CalloutBlock } from './extensions/CalloutBlock'
 import { useNotesStore } from '../../store/notes'
 import { getNoteContent } from '../../lib/db'
+import { BacklinkPicker } from '../ui/BacklinkPicker'
+import { SlashMenu, type SlashItem } from '../ui/SlashMenu'
 
 function debounce<T extends (...args: Parameters<T>) => void>(fn: T, ms: number): T {
   let timer: ReturnType<typeof setTimeout>
@@ -96,7 +98,46 @@ export function Editor({ noteId }: EditorProps) {
   return (
     <div className="editor-wrap">
       <EditorContent editor={editor} className="doc" />
-      {/* BacklinkPicker and SlashMenu added in Tasks 9 and 10 */}
+      {backlinkPos && editor && (
+        <BacklinkPicker
+          pos={backlinkPos}
+          query={backlinkQuery}
+          onPick={(note) => {
+            const { from } = editor.state.selection
+            const deleteFrom = from - backlinkQuery.length - 2
+            editor.chain().focus()
+              .deleteRange({ from: deleteFrom, to: from })
+              .insertContent({ type: 'backlink', attrs: { noteId: note.id, title: note.title } })
+              .run()
+            setBacklinkPos(null)
+          }}
+          onClose={() => setBacklinkPos(null)}
+        />
+      )}
+      {slashPos && editor && (
+        <SlashMenu
+          pos={slashPos}
+          query={slashQuery}
+          onPick={(item: SlashItem) => {
+            const { from } = editor.state.selection
+            const deleteFrom = from - slashQuery.length - 1
+            const chain = editor.chain().focus().deleteRange({ from: deleteFrom, to: from })
+            if      (item.type === 'h1')      chain.setHeading({ level: 1 }).run()
+            else if (item.type === 'h2')      chain.setHeading({ level: 2 }).run()
+            else if (item.type === 'h3')      chain.setHeading({ level: 3 }).run()
+            else if (item.type === 'todo')    chain.toggleTaskItem().run()
+            else if (item.type === 'list')    chain.toggleBulletList().run()
+            else if (item.type === 'quote')   chain.toggleBlockquote().run()
+            else if (item.type === 'code')    chain.toggleCodeBlock().run()
+            else if (item.type === 'divider') chain.setHorizontalRule().run()
+            else if (item.type === 'math')    chain.insertContent({ type: 'mathBlock', attrs: { src: '' } }).run()
+            else if (item.type === 'callout') chain.insertContent({ type: 'calloutBlock' }).run()
+            else chain.setParagraph().run()
+            setSlashPos(null)
+          }}
+          onClose={() => setSlashPos(null)}
+        />
+      )}
     </div>
   )
 }
