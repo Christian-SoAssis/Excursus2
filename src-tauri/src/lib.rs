@@ -16,7 +16,16 @@ pub fn run() {
             app.manage(AppState { db: Mutex::new(conn) });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![
+            commands::notes::save_note,
+            commands::notes::get_notes,
+            commands::notes::get_note_content,
+            commands::notes::delete_note,
+            commands::notes::move_note,
+            commands::notes::create_note,
+            commands::graph::get_graph,
+            commands::search::search_notes,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
