@@ -1,51 +1,41 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useEffect } from 'react'
+import { Toaster } from 'sonner'
+import { AppBar } from './components/AppBar'
+import { FloatingMode } from './components/modes/FloatingMode'
+import { SpatialMode } from './components/modes/SpatialMode'
+import { GraphMode } from './components/modes/GraphMode'
+import { useUIStore } from './store/ui'
+import { useNotesStore } from './store/notes'
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+export function App() {
+  const { mode, theme, fontScale, showHandles } = useUIStore()
+  const loadNotes = useNotesStore(s => s.loadNotes)
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('font-size', `${fontScale * 16}px`)
+  }, [fontScale])
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--handle-display', showHandles ? 'flex' : 'none')
+  }, [showHandles])
+
+  useEffect(() => { loadNotes() }, [])
+
+  const renderMode = () => {
+    if (mode === 'spatial') return <SpatialMode />
+    if (mode === 'graph') return <GraphMode />
+    return <FloatingMode />
   }
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
-  );
+    <>
+      <AppBar />
+      <main className="stage">{renderMode()}</main>
+      <Toaster position="bottom-right" />
+    </>
+  )
 }
-
-export default App;
