@@ -42,4 +42,19 @@ mod tests {
         ).unwrap();
         assert_eq!(count, 1);
     }
+
+    #[test]
+    fn test_fts_trigger_indexes_inserted_note() {
+        let conn = test_conn();
+        conn.execute(
+            "INSERT INTO notes (id, title, text_body) VALUES ('n1', 'Zettelkasten', 'notas atômicas')",
+            [],
+        ).unwrap();
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM notes_fts WHERE notes_fts MATCH 'Zettelkasten*'",
+            [],
+            |r| r.get(0),
+        ).unwrap();
+        assert_eq!(count, 1, "FTS trigger should index the inserted note");
+    }
 }
