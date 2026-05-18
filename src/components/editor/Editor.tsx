@@ -87,11 +87,16 @@ export function Editor({ noteId }: EditorProps) {
     const cached = contentCache[noteId]
     if (cached) { editor.commands.setContent(cached); return }
     getNoteContent(noteId).then(raw => {
-      const content: JSONContent = raw
-        ? JSON.parse(raw)
-        : { type: 'doc', content: [{ type: 'paragraph' }] }
+      let content: JSONContent
+      try {
+        content = raw ? JSON.parse(raw) : { type: 'doc', content: [{ type: 'paragraph' }] }
+      } catch {
+        content = { type: 'doc', content: [{ type: 'paragraph' }] }
+      }
       editor.commands.setContent(content)
       cacheContent(noteId, content)
+    }).catch(() => {
+      editor.commands.setContent({ type: 'doc', content: [{ type: 'paragraph' }] })
     })
   }, [noteId, editor])
 

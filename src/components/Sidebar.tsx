@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNotesStore } from '../store/notes'
 import { searchNotes } from '../lib/db'
 import type { Note } from '../lib/db'
@@ -7,11 +7,18 @@ export function Sidebar() {
   const { notes, activeNoteId, setActiveNote, deleteNote } = useNotesStore()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Note[] | null>(null)
+  const searchCounterRef = useRef(0)
 
   const handleSearch = async (q: string) => {
     setQuery(q)
-    if (!q.trim()) { setResults(null); return }
-    setResults(await searchNotes(q))
+    if (!q.trim()) { setResults([]); return }
+    const id = ++searchCounterRef.current
+    try {
+      const r = await searchNotes(q)
+      if (id === searchCounterRef.current) setResults(r)
+    } catch {
+      if (id === searchCounterRef.current) setResults([])
+    }
   }
 
   const displayed = results ?? notes

@@ -11,7 +11,7 @@ interface NotesStore {
   setActiveNote: (id: string) => void
   saveNoteContent: (id: string, title: string, folder: string, content: JSONContent) => Promise<void>
   deleteNote: (id: string) => Promise<void>
-  moveNote: (id: string, posX: number, posY: number) => Promise<void>
+  moveNote: (id: string, posX: number, posY: number, localOnly?: boolean) => Promise<void>
   createNote: (title?: string, folder?: string, posX?: number, posY?: number) => Promise<string>
   cacheContent: (id: string, content: JSONContent) => void
 }
@@ -58,12 +58,13 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     }
   },
 
-  moveNote: async (id, posX, posY) => {
+  moveNote: async (id, posX, posY, localOnly = false) => {
+    set(s => ({
+      notes: s.notes.map(n => n.id === id ? { ...n, posX, posY } : n),
+    }))
+    if (localOnly) return
     try {
       await moveNoteDb(id, posX, posY)
-      set(s => ({
-        notes: s.notes.map(n => n.id === id ? { ...n, posX, posY } : n),
-      }))
     } catch {
       toast.error('Erro ao mover nota')
     }

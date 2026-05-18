@@ -51,8 +51,8 @@ export async function createNote(params: {
   return invoke<string>('create_note', {
     title: params.title,
     folder: params.folder,
-    pos_x: params.posX,
-    pos_y: params.posY,
+    posX: params.posX,
+    posY: params.posY,
   })
 }
 
@@ -61,7 +61,7 @@ export async function deleteNote(id: string): Promise<void> {
 }
 
 export async function moveNote(id: string, posX: number, posY: number): Promise<void> {
-  await invoke('move_note', { id, pos_x: posX, pos_y: posY })
+  await invoke('move_note', { id, posX, posY })
 }
 
 export async function getGraph(): Promise<GraphData> {

@@ -5,7 +5,8 @@ use rusqlite::params;
 #[tauri::command]
 pub fn search_notes(state: tauri::State<AppState>, query: String) -> Result<Vec<NoteRow>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let fts_query = format!("{query}*");
+    let sanitized = query.replace('"', "\"\"");
+    let fts_query = format!("\"{sanitized}\"*");
     let mut stmt = conn.prepare(
         "SELECT n.id, n.title, n.folder, n.pos_x, n.pos_y, n.pos_w,
                 n.word_count, n.created_at, n.updated_at

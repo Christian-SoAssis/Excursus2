@@ -58,9 +58,15 @@ export function SpatialMode() {
       const stage = stageRef.current!.getBoundingClientRect()
       const x = (e.clientX - stage.left - pan.x - dragging.dx) / zoom
       const y = (e.clientY - stage.top - pan.y - dragging.dy) / zoom
-      moveNote(dragging.id, x, y)
+      moveNote(dragging.id, x, y, true)
     }
-    const up = () => setDragging(null)
+    const up = (e: MouseEvent) => {
+      const stage = stageRef.current!.getBoundingClientRect()
+      const x = (e.clientX - stage.left - pan.x - dragging.dx) / zoom
+      const y = (e.clientY - stage.top - pan.y - dragging.dy) / zoom
+      moveNote(dragging.id, x, y, false)
+      setDragging(null)
+    }
     window.addEventListener('mousemove', move)
     window.addEventListener('mouseup', up)
     return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up) }
