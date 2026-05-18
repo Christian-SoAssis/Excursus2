@@ -1,8 +1,8 @@
 [package]
-name = "tauri-app"
+name = "excursus2"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Excursus 2 desktop note-taking app"
+authors = ["chrisassis"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
