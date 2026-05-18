@@ -85,12 +85,12 @@ export function Editor({ noteId }: EditorProps) {
     if (!editor || loadedRef.current === noteId) return
     loadedRef.current = noteId
     const cached = contentCache[noteId]
-    if (cached) { editor.commands.setContent(cached, false); return }
+    if (cached) { editor.commands.setContent(cached); return }
     getNoteContent(noteId).then(raw => {
       const content: JSONContent = raw
         ? JSON.parse(raw)
         : { type: 'doc', content: [{ type: 'paragraph' }] }
-      editor.commands.setContent(content, false)
+      editor.commands.setContent(content)
       cacheContent(noteId, content)
     })
   }, [noteId, editor])
@@ -125,7 +125,7 @@ export function Editor({ noteId }: EditorProps) {
             if      (item.type === 'h1')      chain.setHeading({ level: 1 }).run()
             else if (item.type === 'h2')      chain.setHeading({ level: 2 }).run()
             else if (item.type === 'h3')      chain.setHeading({ level: 3 }).run()
-            else if (item.type === 'todo')    chain.toggleTaskItem().run()
+            else if (item.type === 'todo')    chain.toggleTaskList().run()
             else if (item.type === 'list')    chain.toggleBulletList().run()
             else if (item.type === 'quote')   chain.toggleBlockquote().run()
             else if (item.type === 'code')    chain.toggleCodeBlock().run()

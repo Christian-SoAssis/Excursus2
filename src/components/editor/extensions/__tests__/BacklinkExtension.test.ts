@@ -19,7 +19,8 @@ describe('BacklinkExtension', () => {
         content: [{ type: 'backlink', attrs: { noteId: 'n1', title: 'My Note' } }],
       }],
     })
-    const node = editor.getJSON().content![0].content![0]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const node = editor.getJSON().content![0].content![0] as any
     expect(node.type).toBe('backlink')
     expect(node.attrs?.noteId).toBe('n1')
     expect(node.attrs?.title).toBe('My Note')
@@ -29,7 +30,8 @@ describe('BacklinkExtension', () => {
   it('inserts backlink node via insertContent', () => {
     const editor = makeEditor()
     editor.commands.insertContent({ type: 'backlink', attrs: { noteId: 'n2', title: 'Other' } })
-    const node = editor.getJSON().content![0].content![0]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const node = editor.getJSON().content![0].content![0] as any
     expect(node.type).toBe('backlink')
     expect(node.attrs?.noteId).toBe('n2')
     editor.destroy()
