@@ -9,10 +9,12 @@ export default defineConfig({
   testDir: './tests/e2e',
   timeout: 60_000,
   use: {
-    // Electron app path — built with --debug flag
-    executablePath: path.join(
-      __dirname,
-      'src-tauri/target/debug/excursus2'
-    ),
+    launchOptions: {
+      // Electron app path — built with --debug flag
+      executablePath: path.join(
+        __dirname,
+        'src-tauri/target/debug/excursus2'
+      ),
+    },
   },
 })
