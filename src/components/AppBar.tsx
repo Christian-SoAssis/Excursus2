@@ -1,5 +1,6 @@
 import { useUIStore } from '../store/ui'
 import { useNotesStore } from '../store/notes'
+import { useAuthStore } from '../store/auth'
 
 const MODES = [
   { id: 'home'     as const, label: 'Hoje' },
@@ -13,6 +14,7 @@ const MODES = [
 export function AppBar() {
   const { mode, theme, setMode, setTheme } = useUIStore()
   const createNote = useNotesStore(s => s.createNote)
+  const { user, signOut } = useAuthStore()
 
   return (
     <header className="appbar">
@@ -36,7 +38,7 @@ export function AppBar() {
         <button className="appbar__tab" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
           {theme === 'dark' ? '☽' : '☀'}
         </button>
-        <div className="appbar__avatar" />
+        <div className="appbar__avatar" title={user?.email ?? ''} onClick={signOut} style={{ cursor: 'pointer' }} />
       </div>
     </header>
   )

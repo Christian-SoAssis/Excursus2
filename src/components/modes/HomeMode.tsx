@@ -1,9 +1,14 @@
 import { useState, useCallback, useRef, memo } from 'react'
+import { useAuthStore } from '../../store/auth'
 
 /* ── date helpers ── */
-const TODAY = new Date()
-TODAY.setHours(0, 0, 0, 0)
-const fmtKey = (d: Date) => d.toISOString().slice(0, 10)
+const getToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
+const fmtKey = (d: Date) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
 const addDays = (d: Date, n: number) => { const c = new Date(d); c.setDate(c.getDate() + n); return c }
 const WEEKDAYS_PT    = ['domingo','segunda','terça','quarta','quinta','sexta','sábado']
 const MONTHS_PT_FULL = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
@@ -42,14 +47,15 @@ const REFLECT_PROMPTS = [
 const MOODS      = ['↓', '~', '↗', '↑', '✦']
 const MOOD_LABELS= ['baixo', 'neutro', 'bem', 'ótimo', 'em chamas']
 
-/* ── mock history ── */
+/* ── mock history (exclui hoje para métricas partirem do zero) ── */
 function seededHistory(habitId: string, days = 90): HabitHistory {
   let seed = 0
   for (const c of habitId) seed = (seed * 31 + c.charCodeAt(0)) >>> 0
   const rand = (i: number) => { const x = Math.sin((seed + i) * 12.9898) * 43758.5453; return x - Math.floor(x) }
+  const today = getToday()
   const history: HabitHistory = {}
-  for (let i = days - 1; i >= 0; i--) {
-    const d = addDays(TODAY, -i)
+  for (let i = days - 1; i >= 1; i--) {  // i >= 1 exclui hoje (i=0)
+    const d = addDays(today, -i)
     const recency = 1 - i / days
     const weekendBoost = ([0,6].includes(d.getDay())) ? -0.1 : 0.05
     history[fmtKey(d)] = rand(i) < 0.45 + 0.35 * recency + weekendBoost ? 1 : 0
@@ -81,18 +87,20 @@ function useLocal<T>(key: string, init: T | (() => T)): [T, (action: T | ((prev:
 
 /* ── streak ── */
 function computeStreak(habits: Habit[]) {
+  const today = getToday()
   let s = 0
   for (let i = 0; i < 365; i++) {
-    if (habits.some(h => h.history[fmtKey(addDays(TODAY, -i))])) s++; else break
+    if (habits.some(h => h.history[fmtKey(addDays(today, -i))])) s++; else break
   }
   return s
 }
 function todayCompletion(habits: Habit[]) {
-  const k = fmtKey(TODAY); return { done: habits.filter(h => h.history[k]).length, total: habits.length }
+  const k = fmtKey(getToday()); return { done: habits.filter(h => h.history[k]).length, total: habits.length }
 }
 function weekCompletion(habits: Habit[]) {
+  const today = getToday()
   let done = 0, total = 0
-  for (let i = 0; i < 7; i++) { const k = fmtKey(addDays(TODAY,-i)); for (const h of habits) { total++; if (h.history[k]) done++ } }
+  for (let i = 0; i < 7; i++) { const k = fmtKey(addDays(today,-i)); for (const h of habits) { total++; if (h.history[k]) done++ } }
   return Math.round((done/total)*100)
 }
 
@@ -108,7 +116,6 @@ const TaskTextInput = memo(({ value, done, onChange }: { value: string; done: bo
   const [text, setText] = useState(value)
   const editing = useRef(false)
 
-  // Only sync when parent value changes AND we're not actively editing
   const prevValue = useRef(value)
   if (prevValue.current !== value && !editing.current) {
     setText(value)
@@ -131,29 +138,60 @@ const TaskTextInput = memo(({ value, done, onChange }: { value: string; done: bo
    HabitsCard
 ================================================================ */
 const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a: Habit[] | ((p: Habit[]) => Habit[])) => void }) => {
+  const [addingHabit, setAddingHabit] = useState(false)
+  const [habitDraft, setHabitDraft] = useState({ name: '', glyph: '○', sub: '' })
+
   const toggle = useCallback((habitId: string) => {
-    const k = fmtKey(TODAY)
+    const k = fmtKey(getToday())
     setHabits(hs => hs.map(h => h.id === habitId
       ? { ...h, history: { ...h.history, [k]: h.history[k] ? 0 : 1 } }
       : h))
   }, [setHabits])
 
-  const habitStreak = (h: Habit) => {
-    let s = 0; for (let i = 0; i < 200; i++) { if (h.history[fmtKey(addDays(TODAY,-i))]) s++; else break }; return s
+  const remove = useCallback((habitId: string) => {
+    setHabits(hs => hs.filter(h => h.id !== habitId))
+  }, [setHabits])
+
+  const addHabit = () => {
+    const name = habitDraft.name.trim()
+    if (!name) return
+    setHabits(hs => [...hs, {
+      id: 'h_' + Date.now(),
+      name,
+      glyph: habitDraft.glyph.trim() || '○',
+      glyphCls: '',
+      sub: habitDraft.sub.trim() || 'diariamente',
+      history: {},
+    }])
+    setHabitDraft({ name: '', glyph: '○', sub: '' })
+    setAddingHabit(false)
   }
-  const lastSeven = (h: Habit) => Array.from({ length: 7 }, (_, i) => {
-    const d = addDays(TODAY, -(6-i)); return { date: d, done: !!h.history[fmtKey(d)], isToday: i === 6 }
-  })
+
+  const habitStreak = (h: Habit) => {
+    const today = getToday()
+    let s = 0; for (let i = 0; i < 200; i++) { if (h.history[fmtKey(addDays(today,-i))]) s++; else break }; return s
+  }
+  const lastSeven = (h: Habit) => {
+    const today = getToday()
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = addDays(today, -(6-i)); return { date: d, done: !!h.history[fmtKey(d)], isToday: i === 6 }
+    })
+  }
+
+  const todayKey = fmtKey(getToday())
 
   return (
     <div className="hm-card">
       <div className="hm-card__head">
         <h2 className="hm-card__title">Hábitos <em>· hoje</em></h2>
-        <div className="hm-card__meta"><span><b>{habits.filter(h => h.history[fmtKey(TODAY)]).length}</b> / {habits.length}</span></div>
+        <div className="hm-card__meta hm-card__meta--row">
+          <span><b>{habits.filter(h => h.history[todayKey]).length}</b> / {habits.length}</span>
+          <button className="hm-habit-add-btn" onClick={() => setAddingHabit(v => !v)} title="Adicionar hábito">+</button>
+        </div>
       </div>
       <div className="hm-habits">
         {habits.map(h => {
-          const done = !!h.history[fmtKey(TODAY)]
+          const done = !!h.history[todayKey]
           const streak = habitStreak(h)
           return (
             <div key={h.id} className="hm-habit" data-done={done}>
@@ -173,6 +211,7 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
                     title={`${WEEKDAYS_PT[d.date.getDay()]} · ${d.done ? 'feito' : 'pendente'}`}/>
                 ))}
               </div>
+              <button className="hm-habit__del" onClick={() => remove(h.id)} title="Remover hábito">×</button>
               <button className="hm-habit__check" data-done={done} onClick={() => toggle(h.id)}
                 aria-label={done ? `Desmarcar ${h.name}` : `Marcar ${h.name} como feito`}>
                 <CheckIcon />
@@ -180,6 +219,34 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
             </div>
           )
         })}
+        {addingHabit && (
+          <div className="hm-habit-form">
+            <input
+              className="hm-habit-form__glyph"
+              value={habitDraft.glyph}
+              onChange={e => setHabitDraft(d => ({ ...d, glyph: e.target.value }))}
+              maxLength={2}
+              title="Ícone (emoji ou símbolo)"
+            />
+            <input
+              className="hm-habit-form__name"
+              placeholder="Nome do hábito"
+              value={habitDraft.name}
+              onChange={e => setHabitDraft(d => ({ ...d, name: e.target.value }))}
+              onKeyDown={e => e.key === 'Enter' && addHabit()}
+              autoFocus
+            />
+            <input
+              className="hm-habit-form__sub"
+              placeholder="Descrição (opcional)"
+              value={habitDraft.sub}
+              onChange={e => setHabitDraft(d => ({ ...d, sub: e.target.value }))}
+              onKeyDown={e => e.key === 'Enter' && addHabit()}
+            />
+            <button className="hm-habit-form__confirm" onClick={addHabit}>adicionar</button>
+            <button className="hm-habit-form__cancel" onClick={() => setAddingHabit(false)}>×</button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -236,9 +303,10 @@ const TasksCard = memo(({ tasks, setTasks }: { tasks: Task[]; setTasks: (a: Task
    ReflectionCard
 ================================================================ */
 const ReflectionCard = memo(({ reflect, setReflect }: { reflect: ReflectStore; setReflect: (a: ReflectStore | ((p: ReflectStore) => ReflectStore)) => void }) => {
-  const key   = fmtKey(TODAY)
+  const today = getToday()
+  const key   = fmtKey(today)
   const entry = reflect[key] ?? { text: '', mood: -1 }
-  const prompt = REFLECT_PROMPTS[TODAY.getDate() % REFLECT_PROMPTS.length]
+  const prompt = REFLECT_PROMPTS[today.getDate() % REFLECT_PROMPTS.length]
   const setText = useCallback((text: string) => setReflect(r => ({ ...r, [key]: { ...r[key] ?? { mood: -1 }, text } })), [setReflect, key])
   const setMood = useCallback((mood: number) => setReflect(r => { const e = r[key] ?? { text: '', mood: -1 }; return { ...r, [key]: { ...e, mood: e.mood === mood ? -1 : mood } } }), [setReflect, key])
   const words = entry.text?.trim() ? entry.text.trim().split(/\s+/).length : 0
@@ -247,7 +315,7 @@ const ReflectionCard = memo(({ reflect, setReflect }: { reflect: ReflectStore; s
     <div className="hm-card hm-reflect">
       <div className="hm-card__head">
         <h2 className="hm-card__title">Reflexão <em>· do dia</em></h2>
-        <div className="hm-card__meta"><span>{WEEKDAYS_PT[TODAY.getDay()]}</span></div>
+        <div className="hm-card__meta"><span>{WEEKDAYS_PT[today.getDay()]}</span></div>
       </div>
       <div className="hm-reflect__prompt">{prompt}</div>
       <textarea className="hm-reflect__field"
@@ -271,20 +339,30 @@ const ReflectionCard = memo(({ reflect, setReflect }: { reflect: ReflectStore; s
    Heatmap
 ================================================================ */
 const Heatmap = memo(({ habits, filter, setFilter }: { habits: Habit[]; filter: string; setFilter: (f: string) => void }) => {
-  const todayDow  = TODAY.getDay()
-  const startDate = addDays(TODAY, -(13*7 - 1 - (6 - todayDow)))
+  const today     = getToday()
+  const todayDow  = today.getDay()
+  const startDate = addDays(today, -(13*7 - 1 - (6 - todayDow)))
   type Cell = { col: number; row: number; date: Date; inRange: boolean; level: number; value: number; totalHabits: number; isToday: boolean }
   const cells: Cell[] = []
   for (let col = 0; col < 13; col++) {
     for (let row = 0; row < 7; row++) {
-      const date = addDays(startDate, col*7+row); const inRange = date <= TODAY
+      const date = addDays(startDate, col*7+row); const inRange = date <= today
       let level = 0, value = 0, totalHabits = 0
       if (inRange) {
         const k = fmtKey(date)
         if (filter === 'all') { for (const h of habits) { totalHabits++; if (h.history[k]) value++ }; const p = totalHabits ? value/totalHabits : 0; level = p>=.85?4:p>=.6?3:p>=.35?2:p>0?1:0 }
-        else { const h = habits.find(h => h.id === filter); totalHabits=1; value=h?.history[k]?1:0; level=value?4:0 }
+        else {
+          const h = habits.find(hab => hab.id === filter)
+          totalHabits = 1; value = h?.history[k] ? 1 : 0
+          if (h) {
+            let wk = 0
+            for (let j = 0; j < 7; j++) if (h.history[fmtKey(addDays(date, -j))]) wk++
+            const p = wk / 7
+            level = p >= .85 ? 4 : p >= .6 ? 3 : p >= .35 ? 2 : p > 0 ? 1 : 0
+          }
+        }
       }
-      cells.push({ col, row, date, inRange, level, value, totalHabits, isToday: fmtKey(date)===fmtKey(TODAY) })
+      cells.push({ col, row, date, inRange, level, value, totalHabits, isToday: fmtKey(date)===fmtKey(today) })
     }
   }
   const monthLabels: { col: number; label: string }[] = []
@@ -348,12 +426,13 @@ const Heatmap = memo(({ habits, filter, setFilter }: { habits: Habit[]; filter: 
    ConsistencyChart
 ================================================================ */
 const ConsistencyChart = memo(({ habits }: { habits: Habit[] }) => {
+  const today = getToday()
   const DAYS = 30, W = 520, H = 200
   const PAD  = { l: 8, r: 8, t: 14, b: 26 }
   const iW   = W - PAD.l - PAD.r
   const iH   = H - PAD.t - PAD.b
   const data = Array.from({ length: DAYS }, (_, i) => {
-    const d = addDays(TODAY, -(DAYS-1-i)); const k = fmtKey(d)
+    const d = addDays(today, -(DAYS-1-i)); const k = fmtKey(d)
     let done = 0; for (const h of habits) if (h.history[k]) done++
     return { date: d, value: habits.length ? done/habits.length : 0, raw: done }
   })
@@ -426,12 +505,15 @@ const ConsistencyChart = memo(({ habits }: { habits: Habit[] }) => {
    HomeMode
 ================================================================ */
 export function HomeMode() {
-  const [habits,     setHabits]     = useLocal<Habit[]>('hm.habits.v1', seedAll)
-  const [tasks,      setTasks]      = useLocal<Task[]>('hm.tasks.v1', () => TASK_SEED_DEF)
-  const [reflect,    setReflect]    = useLocal<ReflectStore>('hm.reflect.v1', {})
+  const userId = useAuthStore(s => s.user?.id ?? 'local')
+  const uid    = userId.slice(0, 8)
+  const [habits,     setHabits]     = useLocal<Habit[]>(`hm.habits.v1.${uid}`, seedAll)
+  const [tasks,      setTasks]      = useLocal<Task[]>(`hm.tasks.v1.${uid}`, () => TASK_SEED_DEF)
+  const [reflect,    setReflect]    = useLocal<ReflectStore>(`hm.reflect.v1.${uid}`, {})
   const [heatFilter, setHeatFilter] = useState('all')
 
-  const dateLabel = `${WEEKDAYS_PT[TODAY.getDay()]} · ${TODAY.getDate()} de ${MONTHS_PT_FULL[TODAY.getMonth()]}`
+  const today    = getToday()
+  const dateLabel = `${WEEKDAYS_PT[today.getDay()]} · ${today.getDate()} de ${MONTHS_PT_FULL[today.getMonth()]}`
   const streak  = computeStreak(habits)
   const todayC  = todayCompletion(habits)
   const weekPct = weekCompletion(habits)

@@ -1,7 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
+import type { JSONContent } from '@tiptap/react'
+import { toast } from 'sonner'
 import { useNotesStore } from '../../store/notes'
+import { useAiStore } from '../../store/ai'
+import { geminiGenerate } from '../../lib/gemini'
 import { Editor } from '../editor/Editor'
 import { Sidebar } from '../Sidebar'
+
+const SYSTEM_PROMPT =
+  'Você é um assistente de escrita integrado a um app de notas chamado Excursus. ' +
+  'Responda sempre no mesmo idioma do texto da nota. ' +
+  'Seja conciso e direto. Não use formatação markdown.'
 
 const PROMPT_CHIPS = [
   '· resumir',
@@ -11,12 +20,10 @@ const PROMPT_CHIPS = [
   '· reescrever',
 ]
 
-const MARGIN_NOTES = [
-  { tag: 'fortalecer', body: 'Esta abertura define o sistema, mas falta um exemplo concreto.' },
-  { tag: 'fato', body: 'Luhmann escreveu ~90.000 fichas ao longo de 30 anos.' },
-  { tag: 'expandir', body: 'Posso derivar a versão ponderada por recência. Aceita inserir como sub-bloco?' },
-  { tag: 'conexão', body: 'Este trecho ecoa Andy Matuschak. Quer linkar [[Evergreen Notes]]?' },
-]
+function extractText(node: JSONContent): string {
+  if (node.type === 'text') return node.text ?? ''
+  return (node.content ?? []).map(extractText).join(' ')
+}
 
 interface SelectionAction {
   x: number
@@ -25,11 +32,18 @@ interface SelectionAction {
 }
 
 export function AiMode() {
-  const { notes, activeNoteId } = useNotesStore()
+  const { notes, activeNoteId, contentCache } = useNotesStore()
   const note = notes.find(n => n.id === activeNoteId)
+
+  const {
+    apiKey, setApiKey,
+    annotations, addAnnotation, removeAnnotation, clearAnnotations,
+    loading, setLoading,
+  } = useAiStore()
+
   const [prompt, setPrompt] = useState('')
-  const [busy, setBusy] = useState(false)
   const [actions, setActions] = useState<SelectionAction | null>(null)
+  const [setupKey, setSetupKey] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -45,10 +59,85 @@ export function AiMode() {
     return () => document.removeEventListener('selectionchange', update)
   }, [])
 
-  const runPrompt = () => {
-    if (!prompt.trim()) return
-    setBusy(true)
-    setTimeout(() => { setBusy(false); setPrompt('') }, 900)
+  const runPrompt = async () => {
+    if (!prompt.trim() || !apiKey || loading) return
+    const noteText = note ? extractText(contentCache[note.id] ?? { type: 'doc' }) : ''
+    const userMsg = noteText
+      ? `Nota:\n${noteText}\n\n---\nPedido: ${prompt}`
+      : prompt
+    setLoading(true)
+    try {
+      const result = await geminiGenerate(apiKey, SYSTEM_PROMPT, userMsg)
+      addAnnotation('resposta', result)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao chamar Gemini')
+    } finally {
+      setLoading(false)
+      setPrompt('')
+    }
+  }
+
+  const runSelectionAction = async (action: 'reescrever' | 'resumir' | 'expandir' | 'tom') => {
+    if (!actions?.text || !apiKey || loading) return
+    const selectedText = actions.text
+    setActions(null)
+
+    const config: Record<typeof action, { msg: string; tag: string }> = {
+      reescrever: { msg: `Reescreva o texto a seguir de forma mais clara e concisa:\n\n${selectedText}`, tag: 'reescrita' },
+      resumir:    { msg: `Resuma em 2–3 frases:\n\n${selectedText}`, tag: 'resumo' },
+      expandir:   { msg: `Expanda esta ideia com mais detalhes e exemplos:\n\n${selectedText}`, tag: 'expansão' },
+      tom:        { msg: `Reescreva em tom mais formal e objetivo:\n\n${selectedText}`, tag: 'tom' },
+    }
+
+    const { msg, tag } = config[action]
+    setLoading(true)
+    try {
+      const result = await geminiGenerate(apiKey, SYSTEM_PROMPT, msg)
+      addAnnotation(tag, result)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao chamar Gemini')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Setup screen when no API key configured
+  if (!apiKey) {
+    return (
+      <div className="ai-mode">
+        <Sidebar />
+        <div className="ai-mode__setup-wrap">
+          <div className="ai-mode__setup">
+            <p className="ai-mode__setup-title">Configure o Gemini</p>
+            <p className="ai-mode__setup-desc">
+              Insira sua chave de API do Google Gemini para ativar o assistente de escrita.
+              O modelo <strong>gemini-2.0-flash</strong> é gratuito e não requer cartão de crédito.
+            </p>
+            <div className="ai-mode__setup-row">
+              <input
+                className="twk-field"
+                type="password"
+                value={setupKey}
+                onChange={e => setSetupKey(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && setupKey.trim()) setApiKey(setupKey.trim()) }}
+                placeholder="AIza..."
+                autoFocus
+              />
+              <button
+                className="ai-mode__prompt-send"
+                style={{ borderRadius: 'var(--radius-sm)', padding: '7px 16px', fontSize: '13px' }}
+                onClick={() => { if (setupKey.trim()) setApiKey(setupKey.trim()) }}
+              >
+                Salvar
+              </button>
+            </div>
+            <span className="ai-mode__setup-link">
+              Obtenha sua chave gratuita em aistudio.google.com
+            </span>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -68,15 +157,35 @@ export function AiMode() {
             )}
           </div>
 
-          {/* Margin notes column */}
+          {/* Margin annotations column */}
           <div className="ai-mode__margin">
-            {MARGIN_NOTES.map((n, i) => (
-              <div key={i} className="ai-note" style={{ marginTop: i === 0 ? 48 : 96 }}>
+            <div className="ai-mode__margin-header">
+              <span>IA · {annotations.length}</span>
+              {annotations.length > 0 && (
+                <button className="ai-mode__margin-clear" onClick={clearAnnotations}>
+                  Limpar
+                </button>
+              )}
+            </div>
+
+            {loading && (
+              <div className="ai-note--loading">gerando…</div>
+            )}
+
+            {annotations.length === 0 && !loading && (
+              <div className="ai-mode__margin-empty">
+                Pergunte ou selecione texto<br />para ver sugestões
+              </div>
+            )}
+
+            {annotations.map(a => (
+              <div key={a.id} className="ai-note" style={{ marginBottom: 12 }}>
+                <button className="ai-note__dismiss" onClick={() => removeAnnotation(a.id)}>×</button>
                 <div className="ai-note__tag">
                   <span className="ai-note__tag-dot" />
-                  {n.tag}
+                  {a.tag}
                 </div>
-                <div>{n.body}</div>
+                <div>{a.body}</div>
               </div>
             ))}
           </div>
@@ -95,15 +204,17 @@ export function AiMode() {
             onChange={e => setPrompt(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && runPrompt()}
             placeholder='Pergunte ou peça ao documento — "resuma em 3 linhas", "expanda esta seção"...'
+            disabled={loading}
           />
-          <button className="ai-mode__prompt-send" onClick={runPrompt} disabled={busy}>
-            {busy ? '…' : 'enviar →'}
+          <button className="ai-mode__prompt-send" onClick={runPrompt} disabled={loading || !prompt.trim()}>
+            {loading ? '…' : 'enviar →'}
           </button>
         </div>
         <div className="ai-mode__prompt-chips">
           {PROMPT_CHIPS.map(chip => (
             <button key={chip} className="ai-mode__prompt-chip"
-              onClick={() => { setPrompt(chip.replace('· ', '')); inputRef.current?.focus() }}>
+              onClick={() => { setPrompt(chip.replace('· ', '')); inputRef.current?.focus() }}
+              disabled={loading}>
               {chip}
             </button>
           ))}
@@ -114,12 +225,12 @@ export function AiMode() {
       {actions && (
         <div className="ai-actions" style={{ left: actions.x, top: actions.y }}>
           <div className="ai-actions__head">
-            AI · {actions.text.length} char
+            IA · {actions.text.length} char
           </div>
-          <button>reescrever</button>
-          <button>resumir</button>
-          <button>expandir</button>
-          <button>mudar tom</button>
+          <button onClick={() => runSelectionAction('reescrever')}>reescrever</button>
+          <button onClick={() => runSelectionAction('resumir')}>resumir</button>
+          <button onClick={() => runSelectionAction('expandir')}>expandir</button>
+          <button onClick={() => runSelectionAction('tom')}>mudar tom</button>
         </div>
       )}
     </div>

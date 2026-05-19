@@ -18,9 +18,12 @@ interface NodeSize { w: number; h: number }
 
 const SIZES_KEY = 'excursus-spatial-sizes'
 const FLOW_NODE_W = 320
-const FLOW_NODE_H = 240
-const FLOW_H_GAP  = 72
-const FLOW_V_GAP  = 36
+const FLOW_NODE_H = 260
+const FLOW_H_GAP  = 140
+const FLOW_V_GAP  = 56
+const GRID_COLS   = 3
+const GRID_H_GAP  = 60
+const GRID_V_GAP  = 48
 
 function loadSizes(): Record<string, NodeSize> {
   try { return JSON.parse(localStorage.getItem(SIZES_KEY) || '{}') }
@@ -108,8 +111,8 @@ export function SpatialMode() {
     resizeRef.current = {
       id,
       startClientX: e.clientX, startClientY: e.clientY,
-      startW: sz?.w ?? note.posW,
-      startH: sz?.h ?? 0,
+      startW: sz?.w ?? note.posW ?? FLOW_NODE_W,
+      startH: sz?.h ?? 200,
     }
     setResizingId(id)
   }
@@ -127,7 +130,7 @@ export function SpatialMode() {
         const dw = (e.clientX - startClientX) / z
         const dh = (e.clientY - startClientY) / z
         const newW = Math.max(240, startW + dw)
-        const newH = startH > 0 ? Math.max(100, startH + dh) : (dh > 12 ? Math.max(100, 200 + dh) : 0)
+        const newH = Math.max(100, startH + dh)
         setLocalSizes(s => ({ ...s, [id]: { w: newW, h: newH } }))
       }
     }
@@ -173,58 +176,76 @@ export function SpatialMode() {
     }).filter((p): p is EdgePath => p !== null)
   }, [notes, edges, localSizes])
 
-  /* ── flow layout ── */
+  /* ── flow layout (por links) ── */
   const handleFlowLayout = useCallback(() => {
-    const out = new Map<string, string[]>()
-    const inc = new Map<string, number>()
-    for (const n of notes) { out.set(n.id, []); inc.set(n.id, 0) }
-    for (const e of edges) {
-      out.get(e.aId)?.push(e.bId)
-      inc.set(e.bId, (inc.get(e.bId) ?? 0) + 1)
-    }
+    const hasLinks = edges.length > 0
 
-    // BFS level assignment from roots
-    const level = new Map<string, number>()
-    const queue: string[] = []
-    for (const n of notes) {
-      if ((inc.get(n.id) ?? 0) === 0) { level.set(n.id, 0); queue.push(n.id) }
-    }
-    if (queue.length === 0) notes.forEach(n => { level.set(n.id, 0); queue.push(n.id) })
+    if (hasLinks) {
+      // topological layout
+      const out = new Map<string, string[]>()
+      const inc = new Map<string, number>()
+      for (const n of notes) { out.set(n.id, []); inc.set(n.id, 0) }
+      for (const e of edges) {
+        out.get(e.aId)?.push(e.bId)
+        inc.set(e.bId, (inc.get(e.bId) ?? 0) + 1)
+      }
 
-    let qi = 0
-    while (qi < queue.length) {
-      const id = queue[qi++]
-      const l = level.get(id)!
-      for (const next of out.get(id) ?? []) {
-        if (!level.has(next) || level.get(next)! < l + 1) {
-          const isNew = !level.has(next)
-          level.set(next, l + 1)
-          if (isNew) queue.push(next)
+      const level = new Map<string, number>()
+      const queue: string[] = []
+      for (const n of notes) {
+        if ((inc.get(n.id) ?? 0) === 0) { level.set(n.id, 0); queue.push(n.id) }
+      }
+      if (queue.length === 0) notes.forEach(n => { level.set(n.id, 0); queue.push(n.id) })
+
+      let qi = 0
+      while (qi < queue.length) {
+        const id = queue[qi++]
+        const l = level.get(id)!
+        for (const next of out.get(id) ?? []) {
+          if (!level.has(next) || level.get(next)! < l + 1) {
+            const isNew = !level.has(next)
+            level.set(next, l + 1)
+            if (isNew) queue.push(next)
+          }
         }
       }
-    }
-    for (const n of notes) { if (!level.has(n.id)) level.set(n.id, 0) }
+      for (const n of notes) { if (!level.has(n.id)) level.set(n.id, 0) }
 
-    // Group by column
-    const byLevel = new Map<number, string[]>()
-    for (const [id, l] of level) {
-      if (!byLevel.has(l)) byLevel.set(l, [])
-      byLevel.get(l)!.push(id)
-    }
+      const byLevel = new Map<number, string[]>()
+      for (const [id, l] of level) {
+        if (!byLevel.has(l)) byLevel.set(l, [])
+        byLevel.get(l)!.push(id)
+      }
 
-    // Find tallest column to vertically center shorter ones
-    const maxColH = Math.max(...Array.from(byLevel.values()).map(
-      ids => ids.length * FLOW_NODE_H + (ids.length - 1) * FLOW_V_GAP
-    ), 0)
+      const maxColH = Math.max(...Array.from(byLevel.values()).map(
+        ids => ids.length * FLOW_NODE_H + (ids.length - 1) * FLOW_V_GAP
+      ), 0)
 
-    for (const [l, ids] of byLevel) {
-      const colH  = ids.length * FLOW_NODE_H + (ids.length - 1) * FLOW_V_GAP
-      const startY = 80 + (maxColH - colH) / 2
-      const x = 80 + l * (FLOW_NODE_W + FLOW_H_GAP)
-      ids.forEach((id, i) => {
-        const y = startY + i * (FLOW_NODE_H + FLOW_V_GAP)
-        moveNote(id, x, y, false)
-      })
+      for (const [l, ids] of byLevel) {
+        const colH  = ids.length * FLOW_NODE_H + (ids.length - 1) * FLOW_V_GAP
+        const startY = 80 + (maxColH - colH) / 2
+        const x = 80 + l * (FLOW_NODE_W + FLOW_H_GAP)
+        ids.forEach((id, i) => {
+          const y = startY + i * (FLOW_NODE_H + FLOW_V_GAP)
+          moveNote(id, x, y, false)
+        })
+      }
+    } else {
+      // group by folder in a tidy grid
+      const folders = [...new Set(notes.map(n => n.folder))]
+      let groupX = 80
+      for (const folder of folders) {
+        const group = notes.filter(n => n.folder === folder)
+        group.forEach((n, i) => {
+          const col = i % GRID_COLS
+          const row = Math.floor(i / GRID_COLS)
+          const x = groupX + col * (FLOW_NODE_W + GRID_H_GAP)
+          const y = 80 + row * (FLOW_NODE_H + GRID_V_GAP)
+          moveNote(n.id, x, y, false)
+        })
+        const cols = Math.min(group.length, GRID_COLS)
+        groupX += cols * (FLOW_NODE_W + GRID_H_GAP) + 140  // gap between folder groups
+      }
     }
   }, [notes, edges, moveNote])
 
@@ -232,13 +253,13 @@ export function SpatialMode() {
     <div className="spatial" ref={stageRef} onMouseDown={onStageDown} onDoubleClick={onStageDblClick}>
       <div className="spatial__grid" />
       <div className="spatial__canvas" style={{ transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})` }}>
-        <svg className="spatial__edges" style={{ width: 4000, height: 3000, position: 'absolute', top: 0, left: 0 }}>
+        <svg className="spatial__edges" style={{ width: 6000, height: 4000, position: 'absolute', top: 0, left: 0 }}>
           {edgePaths.map((p, i) => <path key={i} d={p.d} />)}
         </svg>
         {notes.map(note => {
           const sz = localSizes[note.id]
           const w  = sz?.w ?? note.posW
-          const h  = sz?.h ?? 0
+          const h  = sz?.h ?? 200
           return (
             <div
               key={note.id}
@@ -247,9 +268,9 @@ export function SpatialMode() {
                 activeNoteId === note.id   ? 'spatial__node--focused'  : '',
                 draggingId   === note.id   ? 'spatial__node--dragging' : '',
                 resizingId   === note.id   ? 'spatial__node--resizing' : '',
-                h > 0                      ? 'spatial__node--sized'    : '',
+                'spatial__node--sized',
               ].filter(Boolean).join(' ')}
-              style={{ left: note.posX, top: note.posY, width: w, height: h || undefined, position: 'absolute' }}
+              style={{ left: note.posX, top: note.posY, width: w, height: h, position: 'absolute' }}
               onMouseDown={e => onNodeDown(e, note.id)}
               onClick={() => setActiveNote(note.id)}
             >
@@ -281,10 +302,17 @@ export function SpatialMode() {
                     onDoubleClick={e => { e.stopPropagation(); setEditingTitleId(note.id); setTitleDraft(note.title) }}
                   >{note.title}</span>
                 )}
+                <span className="spatial__node__bar-folder">{note.folder}</span>
                 <span className="spatial__node__bar-grip">⠿</span>
               </div>
-              <Editor noteId={note.id} />
-              <div className="spatial__node__resize" onMouseDown={e => onResizeDown(e, note.id)} />
+              <div className="spatial__node__body">
+                <Editor noteId={note.id} />
+              </div>
+              <div className="spatial__node__resize" onMouseDown={e => onResizeDown(e, note.id)}>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M9 1L1 9M9 5L5 9M9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
             </div>
           )
         })}
@@ -299,8 +327,9 @@ export function SpatialMode() {
         <button onClick={() => setZoom(z => Math.min(1.6, z + 0.1))}>+</button>
         <button onClick={() => { setZoom(0.75); setPan({ x: 0, y: 0 }) }}>↺</button>
         <div className="spatial__zoom-sep" />
-        <button className="spatial__zoom-flow" onClick={handleFlowLayout} title="Organizar notas pelo fluxo de links">
-          ⊞ Fluxo
+        <button className="spatial__zoom-flow" onClick={handleFlowLayout}
+          title="Organizar: por links (se houver) ou por pasta">
+          ⊞ Organizar
         </button>
       </div>
     </div>

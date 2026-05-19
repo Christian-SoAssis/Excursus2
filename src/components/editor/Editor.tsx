@@ -1,14 +1,20 @@
 import { useEditor, EditorContent, type JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
+import Underline from '@tiptap/extension-underline'
+import { TextStyle } from '@tiptap/extension-text-style'
+import Color from '@tiptap/extension-color'
+import Highlight from '@tiptap/extension-highlight'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BacklinkExtension } from './extensions/BacklinkExtension'
 import { MathBlock } from './extensions/MathBlock'
 import { CalloutBlock } from './extensions/CalloutBlock'
+import { FocusMode } from './extensions/FocusMode'
 import { useNotesStore } from '../../store/notes'
 import { getNoteContent } from '../../lib/db'
 import { BacklinkPicker } from '../ui/BacklinkPicker'
 import { SlashMenu, type SlashItem } from '../ui/SlashMenu'
+import { FormatToolbar } from '../ui/FormatToolbar'
 
 function debounce<T extends (...args: Parameters<T>) => void>(fn: T, ms: number): T {
   let timer: ReturnType<typeof setTimeout>
@@ -43,9 +49,14 @@ export function Editor({ noteId }: EditorProps) {
     extensions: [
       StarterKit,
       Placeholder.configure({ placeholder: 'Escreva ou / para comandos' }),
+      Underline,
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
       BacklinkExtension,
       MathBlock,
       CalloutBlock,
+      FocusMode,
     ],
     onUpdate: ({ editor }) => {
       const json = editor.getJSON()
@@ -102,6 +113,7 @@ export function Editor({ noteId }: EditorProps) {
 
   return (
     <div className="editor-wrap">
+      <FormatToolbar editor={editor} />
       <EditorContent editor={editor} className="doc" />
       {backlinkPos && editor && (
         <BacklinkPicker

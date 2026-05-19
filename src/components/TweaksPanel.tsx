@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useUIStore, type Accent } from '../store/ui'
+import { useAiStore } from '../store/ai'
 
 const ACCENTS: { value: Accent; label: string }[] = [
   { value: 'terracotta', label: 'Terracotta' },
@@ -10,6 +11,7 @@ const ACCENTS: { value: Accent; label: string }[] = [
 
 export function TweaksPanel() {
   const { theme, accent, fontScale, showHandles, setTheme, setAccent, setFontScale, setShowHandles } = useUIStore()
+  const { apiKey, setApiKey } = useAiStore()
   const [open, setOpen] = useState(false)
 
   return (
@@ -54,6 +56,17 @@ export function TweaksPanel() {
               <div className="twk-lbl"><span>Drag handles</span></div>
               <button className="twk-toggle" data-on={showHandles ? '1' : '0'}
                 onClick={() => setShowHandles(!showHandles)}><i /></button>
+            </div>
+            <div className="twk-sect">IA</div>
+            <div className="twk-row">
+              <div className="twk-lbl"><span>Gemini API Key</span></div>
+              <input
+                type="password"
+                className="twk-field"
+                value={apiKey}
+                onChange={e => setApiKey(e.target.value)}
+                placeholder="AIza..."
+              />
             </div>
           </div>
         </div>

@@ -137,6 +137,7 @@
   white-space: nowrap;
 }
 .hm-card__meta b { color: var(--text-primary); font-weight: 500; }
+.hm-card__meta--row { display: flex; align-items: center; gap: 8px; }
 
 /* -----------------------------------------------------------
    Hábitos
@@ -144,7 +145,7 @@
 .hm-habits { display: flex; flex-direction: column; gap: 2px; }
 .hm-habit {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto auto;
+  grid-template-columns: 22px minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 14px;
   padding: 12px 0;
@@ -215,6 +216,76 @@
   color: var(--bg-page);
 }
 .hm-habit__check svg { width: 14px; height: 14px; }
+
+.hm-habit__del {
+  opacity: 0;
+  font-size: 14px;
+  color: var(--text-faint);
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: opacity .15s var(--ease), color .15s var(--ease);
+  flex-shrink: 0;
+}
+.hm-habit:hover .hm-habit__del { opacity: 1; }
+.hm-habit__del:hover { color: var(--accent-terracotta); }
+
+/* Botão adicionar hábito no cabeçalho */
+.hm-habit-add-btn {
+  font-size: 15px; line-height: 1;
+  width: 20px; height: 20px; border-radius: 4px;
+  color: var(--text-faint);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  display: grid; place-items: center;
+  transition: all .15s var(--ease);
+}
+.hm-habit-add-btn:hover { color: var(--text-primary); border-color: var(--border-default); }
+
+/* Formulário inline para novo hábito */
+.hm-habit-form {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 0;
+  border-top: 1px dashed var(--border-subtle);
+  margin-top: 2px;
+}
+.hm-habit-form__glyph {
+  width: 34px; text-align: center;
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+  border-radius: 4px; padding: 4px 2px;
+  font-size: 15px; color: var(--text-primary); outline: none;
+  flex-shrink: 0;
+}
+.hm-habit-form__name {
+  flex: 1.5;
+  background: transparent; border: none; border-bottom: 1px solid var(--border-default);
+  color: var(--text-primary); padding: 2px 4px; outline: none;
+  font-family: var(--font-serif); font-size: 14px; min-width: 0;
+}
+.hm-habit-form__name::placeholder { color: var(--text-faint); font-style: italic; }
+.hm-habit-form__sub {
+  flex: 1;
+  background: transparent; border: none; border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary); padding: 2px 4px; outline: none;
+  font-family: var(--font-mono); font-size: 11px; min-width: 0;
+  letter-spacing: 0.04em;
+}
+.hm-habit-form__sub::placeholder { color: var(--text-faint); }
+.hm-habit-form__confirm {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 999px;
+  background: rgba(var(--accent-terracotta-rgb), 0.12);
+  color: var(--accent-terracotta);
+  border: 1px solid rgba(var(--accent-terracotta-rgb), 0.3);
+  transition: all .15s;
+  white-space: nowrap;
+}
+.hm-habit-form__confirm:hover { background: rgba(var(--accent-terracotta-rgb), 0.2); }
+.hm-habit-form__cancel {
+  font-size: 14px; color: var(--text-faint);
+  padding: 2px 6px; border-radius: 4px;
+  transition: color .15s;
+}
+.hm-habit-form__cancel:hover { color: var(--text-primary); }
 
 /* -----------------------------------------------------------
    Tarefas
