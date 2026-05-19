@@ -4,6 +4,9 @@ import { AppBar } from './components/AppBar'
 import { FloatingMode } from './components/modes/FloatingMode'
 import { SpatialMode } from './components/modes/SpatialMode'
 import { GraphMode } from './components/modes/GraphMode'
+import { AiMode } from './components/modes/AiMode'
+import { HomeMode } from './components/modes/HomeMode'
+import { ZenMode } from './components/modes/ZenMode'
 import { TweaksPanel } from './components/TweaksPanel'
 import { useUIStore } from './store/ui'
 import { useNotesStore } from './store/notes'
@@ -36,12 +39,17 @@ export function App() {
     const a = ACCENT_MAP[accent] ?? ACCENT_MAP.terracotta
     const conf = a[theme === 'light' ? 'light' : 'dark']
     document.documentElement.style.setProperty('--accent-terracotta', `rgb(${conf.c})`)
+    document.documentElement.style.setProperty('--accent-terracotta-rgb', conf.c)
     document.documentElement.style.setProperty('--accent-electric', `rgb(${conf.e})`)
+    document.documentElement.style.setProperty('--accent-electric-rgb', conf.e)
   }, [accent, theme])
 
   const renderMode = () => {
+    if (mode === 'home') return <HomeMode />
     if (mode === 'spatial') return <SpatialMode />
     if (mode === 'graph') return <GraphMode />
+    if (mode === 'ai') return <AiMode />
+    if (mode === 'zen') return <ZenMode />
     return <FloatingMode />
   }
 

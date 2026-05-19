@@ -2,9 +2,12 @@ import { useUIStore } from '../store/ui'
 import { useNotesStore } from '../store/notes'
 
 const MODES = [
+  { id: 'home'     as const, label: 'Hoje' },
   { id: 'floating' as const, label: 'Floating' },
   { id: 'spatial'  as const, label: 'Spatial' },
   { id: 'graph'    as const, label: 'Graph' },
+  { id: 'ai'       as const, label: 'AI' },
+  { id: 'zen'      as const, label: 'Zen' },
 ]
 
 export function AppBar() {

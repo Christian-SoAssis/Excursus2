@@ -1,14 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNotesStore } from '../../store/notes'
-import { getGraph, type GraphData } from '../../lib/db'
+import { getGraph, type GraphData, type GraphNode } from '../../lib/db'
+
+const FOLDER_COLOR: Record<string, string> = {
+  inbox:        'var(--accent-terracotta)',
+  método:       'var(--accent-terracotta)',
+  técnico:      'var(--accent-emerald)',
+  pessoas:      'var(--accent-electric)',
+  ferramentas:  'var(--accent-amber)',
+}
+
+const FOLDER_LABEL: Record<string, string> = {
+  inbox:        'Inbox',
+  método:       'Método',
+  técnico:      'Técnico',
+  pessoas:      'Pessoas',
+  ferramentas:  'Ferramentas',
+}
+
+function colorOf(folder: string) {
+  return FOLDER_COLOR[folder] ?? FOLDER_COLOR['inbox']
+}
+
+type SimNode = { id: string; x: number; y: number; vx: number; vy: number }
 
 function step(
-  nodes: Array<{ id: string; x: number; y: number; vx: number; vy: number }>,
-  edges: Array<[string, string]>,
+  nodes: SimNode[],
+  edges: [string, string][],
   w: number, h: number,
   dragId: string | null,
   mouse: { x: number; y: number } | null,
-) {
+): SimNode[] {
   const K_REP = 9000, K_SPRING = 0.018, SPRING_L = 130, K_CENTER = 0.0035, DAMP = 0.82
   const next = nodes.map(n => ({ ...n }))
   const byId = Object.fromEntries(next.map(n => [n.id, n]))
@@ -42,41 +64,42 @@ function step(
   return next
 }
 
-const FOLDER_COLOR: Record<string, string> = {
-  inbox:       'var(--accent-terracotta)',
-  método:      'var(--accent-terracotta)',
-  técnico:     'var(--accent-emerald)',
-  pessoas:     'var(--accent-electric)',
-  ferramentas: 'var(--accent-amber)',
-}
-
 export function GraphMode() {
   const { notes, setActiveNote } = useNotesStore()
-  const stageRef = useRef<SVGSVGElement>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
   const [size, setSize] = useState({ w: 1200, h: 700 })
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] })
-  const [simNodes, setSimNodes] = useState<Array<{ id: string; x: number; y: number; vx: number; vy: number }>>([])
+  const [simNodes, setSimNodes] = useState<SimNode[]>([])
   const [selected, setSelected] = useState<string | null>(null)
+  const [hovered, setHovered] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('all')
+  const [minDeg, setMinDeg] = useState(0)
+  const [showLabels, setShowLabels] = useState(true)
   const dragRef = useRef<{ id: string | null; mouse: { x: number; y: number } | null }>({ id: null, mouse: null })
   const [, tick] = useState(0)
 
   useEffect(() => { getGraph().then(setGraphData) }, [notes])
 
   useEffect(() => {
-    if (!stageRef.current) return
+    const el = stageRef.current
+    if (!el) return
     const ro = new ResizeObserver(entries => {
       const { width, height } = entries[0].contentRect
       setSize({ w: width, h: height })
     })
-    ro.observe(stageRef.current.parentElement!)
+    ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
   useEffect(() => {
     if (!size.w || !graphData.nodes.length) return
     setSimNodes(prev => {
-      if (prev.length) return prev
+      if (prev.length === graphData.nodes.length) return prev
       return graphData.nodes.map((n, i) => {
+        const existing = prev.find(p => p.id === n.id)
+        if (existing) return existing
         const angle = (i / graphData.nodes.length) * Math.PI * 2
         const r = 160 + Math.random() * 60
         return { id: n.id, x: size.w / 2 + Math.cos(angle) * r, y: size.h / 2 + Math.sin(angle) * r, vx: 0, vy: 0 }
@@ -84,10 +107,16 @@ export function GraphMode() {
     })
   }, [size.w, graphData.nodes.length])
 
-  const edgePairs = useMemo(
-    () => graphData.edges.map(e => [e.aId, e.bId] as [string, string]),
+  const edgePairs = useMemo<[string, string][]>(
+    () => graphData.edges.map(e => [e.aId, e.bId]),
     [graphData.edges]
   )
+
+  const degree = useMemo(() => {
+    const d: Record<string, number> = {}
+    edgePairs.forEach(([a, b]) => { d[a] = (d[a] || 0) + 1; d[b] = (d[b] || 0) + 1 })
+    return d
+  }, [edgePairs])
 
   useEffect(() => {
     if (!simNodes.length) return
@@ -106,7 +135,7 @@ export function GraphMode() {
     const node = simNodes.find(n => n.id === id)
     dragRef.current = { id, mouse: node ? { x: node.x, y: node.y } : null }
     const move = (ev: MouseEvent) => {
-      const rect = stageRef.current!.getBoundingClientRect()
+      const rect = svgRef.current!.getBoundingClientRect()
       dragRef.current.mouse = { x: ev.clientX - rect.left, y: ev.clientY - rect.top }
     }
     const up = () => {
@@ -118,61 +147,204 @@ export function GraphMode() {
     window.addEventListener('mouseup', up)
   }
 
+  const focusedId = hovered ?? selected
+
+  const neighborSet = useMemo(() => {
+    const s = new Set<string>()
+    if (!focusedId) return s
+    s.add(focusedId)
+    edgePairs.forEach(([a, b]) => {
+      if (a === focusedId) s.add(b)
+      if (b === focusedId) s.add(a)
+    })
+    return s
+  }, [focusedId, edgePairs])
+
   const nodeById = useMemo(() => Object.fromEntries(simNodes.map(n => [n.id, n])), [simNodes])
-  const infoNote = graphData.nodes.find(n => n.id === selected)
-  const degree = useMemo(() => {
-    const d: Record<string, number> = {}
-    edgePairs.forEach(([a, b]) => { d[a] = (d[a] || 0) + 1; d[b] = (d[b] || 0) + 1 })
-    return d
-  }, [edgePairs])
+  const infoByNodeId = useMemo(() => Object.fromEntries(graphData.nodes.map(n => [n.id, n])), [graphData.nodes])
+
+  const folders = useMemo(() => {
+    const seen = new Set<string>()
+    const counts: Record<string, number> = {}
+    graphData.nodes.forEach(n => {
+      seen.add(n.folder)
+      counts[n.folder] = (counts[n.folder] || 0) + 1
+    })
+    return { folders: Array.from(seen), counts }
+  }, [graphData.nodes])
+
+  const isVisible = (n: GraphNode) => {
+    if (filter !== 'all' && n.folder !== filter) return false
+    if (search && !n.title.toLowerCase().includes(search.toLowerCase())) return false
+    if ((degree[n.id] || 0) < minDeg) return false
+    return true
+  }
+
+  const selNote = graphData.nodes.find(n => n.id === selected)
+  const selNeighbors = useMemo(() =>
+    graphData.nodes.filter(n => n.id !== selected && edgePairs.some(([a, b]) => (a === selected && b === n.id) || (b === selected && a === n.id))),
+    [selected, graphData.nodes, edgePairs]
+  )
 
   return (
-    <div className="graph" style={{ display: 'flex', height: '100%' }}>
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <svg ref={stageRef} className="graph__svg" style={{ width: '100%', height: '100%' }}>
+    <div className="graph">
+      {/* Topbar */}
+      <div className="graph__topbar">
+        <div className="graph__search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar nota..." />
+          {search && <button onClick={() => setSearch('')} style={{ color: 'var(--text-muted)', padding: '0 4px', fontSize: 14 }}>×</button>}
+        </div>
+        <div className="graph__filters">
+          <button className="graph__chip" data-active={filter === 'all' || undefined} onClick={() => setFilter('all')}>
+            todas <span>{graphData.nodes.length}</span>
+          </button>
+          {folders.folders.map(f => (
+            <button key={f} className="graph__chip" data-active={filter === f || undefined} onClick={() => setFilter(f)}>
+              <span className="graph__chip-dot" style={{ background: colorOf(f) }} />
+              {FOLDER_LABEL[f] ?? f} <span>{folders.counts[f]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="graph__controls">
+          <label className="graph__slider">
+            <span>min grau</span>
+            <input type="range" min="0" max="4" value={minDeg} onChange={e => setMinDeg(+e.target.value)} />
+            <b>{minDeg}+</b>
+          </label>
+          <button className="graph__chip" data-active={showLabels || undefined} onClick={() => setShowLabels(s => !s)}>
+            rótulos
+          </button>
+        </div>
+      </div>
+
+      {/* Stage */}
+      <div className="graph__stage" ref={stageRef}>
+        <svg ref={svgRef} className="graph__svg" width={size.w} height={size.h}>
+          <defs>
+            <radialGradient id="node-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="var(--accent-terracotta)" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="var(--accent-terracotta)" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+
+          {/* Edges */}
           {edgePairs.map(([a, b], i) => {
             const A = nodeById[a], B = nodeById[b]
             if (!A || !B) return null
-            return <line key={i} x1={A.x} y1={A.y} x2={B.x} y2={B.y}
-              stroke="var(--border-strong)" strokeWidth="1" strokeOpacity="0.35" />
+            const dim = !!focusedId && !(neighborSet.has(a) && neighborSet.has(b))
+            const hot = !!focusedId && (a === focusedId || b === focusedId)
+            return (
+              <line key={i} x1={A.x} y1={A.y} x2={B.x} y2={B.y}
+                stroke={hot ? 'var(--accent-terracotta)' : 'var(--border-strong)'}
+                strokeWidth={hot ? 1.6 : 1}
+                strokeOpacity={dim ? 0.06 : hot ? 0.7 : 0.35}
+              />
+            )
           })}
+
+          {/* Nodes */}
           {simNodes.map(n => {
-            const info = graphData.nodes.find(x => x.id === n.id)
+            const info = infoByNodeId[n.id]
             if (!info) return null
-            const color = FOLDER_COLOR[info.folder] ?? FOLDER_COLOR['inbox']
+            if (!isVisible(info) && n.id !== focusedId) return null
+            const color = colorOf(info.folder)
+            const isFocus = focusedId === n.id
+            const isSelected = selected === n.id
+            const dim = !!focusedId && !neighborSet.has(n.id)
             const deg = degree[n.id] || 0
             const r = 8 + Math.min(10, deg * 2.2)
             return (
-              <g key={n.id} transform={`translate(${n.x},${n.y})`} style={{ cursor: 'pointer' }}
+              <g key={n.id} transform={`translate(${n.x},${n.y})`}
+                style={{ cursor: 'pointer', opacity: dim ? 0.15 : 1, transition: 'opacity .2s' }}
+                onMouseEnter={() => setHovered(n.id)}
+                onMouseLeave={() => setHovered(null)}
                 onClick={() => setSelected(n.id)}
                 onMouseDown={e => onNodeDown(e, n.id)}>
-                <circle r={r} fill="var(--bg-elevated)" stroke={color}
-                  strokeWidth={selected === n.id ? 2.5 : 1.5} />
-                <text textAnchor="middle" dy={r + 14}
-                  fontFamily="var(--font-sans)" fontSize="11"
-                  fill={selected === n.id ? 'var(--text-primary)' : 'var(--text-secondary)'}>
-                  {info.title.slice(0, 24)}
-                </text>
+                {isFocus && <circle r={r + 9} fill="none" stroke={color} strokeWidth="1.2" opacity="0.35" />}
+                <circle r={r} fill="var(--bg-elevated)" stroke={color} strokeWidth={isSelected ? 2.5 : 1.5} />
+                {isSelected && <circle r={r - 3} fill={color} opacity="0.7" />}
+                {showLabels && (
+                  <text textAnchor="middle" dy={r + 15}
+                    fontFamily="var(--font-sans)" fontSize="11"
+                    fill={isFocus ? 'var(--text-primary)' : 'var(--text-secondary)'}
+                    style={{ pointerEvents: 'none', fontWeight: isSelected ? 500 : 400 }}>
+                    {info.title.length > 22 ? info.title.slice(0, 22) + '…' : info.title}
+                  </text>
+                )}
               </g>
             )
           })}
         </svg>
+
+        {/* Legend */}
+        <div className="graph__legend">
+          <div className="graph__legend-title">
+            {graphData.nodes.length} notas · {edgePairs.length} conexões
+          </div>
+          {folders.folders.map(f => (
+            <div key={f} className="graph__legend-row">
+              <span className="graph__legend-dot" style={{ background: colorOf(f) }} />
+              <span>{FOLDER_LABEL[f] ?? f}</span>
+              <span style={{ color: 'var(--text-faint)', marginLeft: 'auto' }}>{folders.counts[f]}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Stats */}
+        <div className="graph__stats">
+          <div><span>{simNodes.filter(n => { const info = infoByNodeId[n.id]; return info && isVisible(info) }).length}</span> visíveis</div>
+          <div><span>{edgePairs.length}</span> arestas</div>
+          {graphData.nodes.length > 0 && (
+            <div><span>{(edgePairs.length * 2 / graphData.nodes.length).toFixed(1)}</span> grau médio</div>
+          )}
+        </div>
       </div>
 
-      {infoNote && (
-        <aside className="graph__panel">
-          <div className="graph__panel-head">
-            <div className="graph__panel-folder" style={{ color: FOLDER_COLOR[infoNote.folder] ?? FOLDER_COLOR['inbox'] }}>
-              {infoNote.folder}
+      {/* Panel */}
+      <aside className="graph__panel">
+        {selNote ? (
+          <>
+            <div className="graph__panel-head">
+              <div className="graph__panel-folder" style={{ color: colorOf(selNote.folder) }}>
+                <span className="graph__legend-dot" style={{ background: colorOf(selNote.folder), display: 'inline-block', marginRight: 6 }} />
+                {FOLDER_LABEL[selNote.folder] ?? selNote.folder}
+              </div>
+              <h2 className="graph__panel-title">{selNote.title}</h2>
+              <div className="graph__panel-meta">
+                <span>{degree[selNote.id] || 0} conexões</span>
+              </div>
             </div>
-            <h2 className="graph__panel-title">{infoNote.title}</h2>
-            <div className="graph__panel-meta">{degree[infoNote.id] || 0} conexões</div>
+
+            {selNeighbors.length > 0 && (
+              <div className="graph__panel-section">
+                <div className="graph__panel-section-title">Conectadas ({selNeighbors.length})</div>
+                {selNeighbors.map(n => (
+                  <button key={n.id} className="graph__panel-link" onClick={() => setSelected(n.id)}>
+                    <span className="graph__legend-dot" style={{ background: colorOf(n.folder), display: 'inline-block', flexShrink: 0 }} />
+                    <span style={{ flex: 1, textAlign: 'left' }}>{n.title}</span>
+                    <span style={{ color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>{degree[n.id] || 0}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="graph__panel-section">
+              <div className="graph__panel-section-title">Ações</div>
+              <button className="graph__panel-link" onClick={() => { setActiveNote(selNote.id) }}>
+                <span style={{ color: 'var(--accent-terracotta)' }}>↗</span>
+                <span>Abrir no editor</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <div style={{ color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '8px 0' }}>
+            Clique em uma nota
           </div>
-          <button className="graph__panel-link" onClick={() => setActiveNote(infoNote.id)}>
-            ↗ Abrir no editor
-          </button>
-        </aside>
-      )}
+        )}
+      </aside>
     </div>
   )
 }
