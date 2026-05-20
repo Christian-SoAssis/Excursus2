@@ -47,22 +47,7 @@ const REFLECT_PROMPTS = [
 const MOODS      = ['↓', '~', '↗', '↑', '✦']
 const MOOD_LABELS= ['baixo', 'neutro', 'bem', 'ótimo', 'em chamas']
 
-/* ── mock history (exclui hoje para métricas partirem do zero) ── */
-function seededHistory(habitId: string, days = 90): HabitHistory {
-  let seed = 0
-  for (const c of habitId) seed = (seed * 31 + c.charCodeAt(0)) >>> 0
-  const rand = (i: number) => { const x = Math.sin((seed + i) * 12.9898) * 43758.5453; return x - Math.floor(x) }
-  const today = getToday()
-  const history: HabitHistory = {}
-  for (let i = days - 1; i >= 1; i--) {  // i >= 1 exclui hoje (i=0)
-    const d = addDays(today, -i)
-    const recency = 1 - i / days
-    const weekendBoost = ([0,6].includes(d.getDay())) ? -0.1 : 0.05
-    history[fmtKey(d)] = rand(i) < 0.45 + 0.35 * recency + weekendBoost ? 1 : 0
-  }
-  return history
-}
-function seedAll(): Habit[] { return HABIT_SEED_DEF.map(h => ({ ...h, history: seededHistory(h.id) })) }
+function seedAll(): Habit[] { return HABIT_SEED_DEF.map(h => ({ ...h, history: {} })) }
 
 /* ── localStorage hook — saves synchronously inside setter to avoid async races ── */
 function useLocal<T>(key: string, init: T | (() => T)): [T, (action: T | ((prev: T) => T)) => void] {
@@ -507,9 +492,9 @@ const ConsistencyChart = memo(({ habits }: { habits: Habit[] }) => {
 export function HomeMode() {
   const userId = useAuthStore(s => s.user?.id ?? 'local')
   const uid    = userId.slice(0, 8)
-  const [habits,     setHabits]     = useLocal<Habit[]>(`hm.habits.v1.${uid}`, seedAll)
-  const [tasks,      setTasks]      = useLocal<Task[]>(`hm.tasks.v1.${uid}`, () => TASK_SEED_DEF)
-  const [reflect,    setReflect]    = useLocal<ReflectStore>(`hm.reflect.v1.${uid}`, {})
+  const [habits,     setHabits]     = useLocal<Habit[]>(`hm.habits.v2.${uid}`, seedAll)
+  const [tasks,      setTasks]      = useLocal<Task[]>(`hm.tasks.v2.${uid}`, () => [])
+  const [reflect,    setReflect]    = useLocal<ReflectStore>(`hm.reflect.v2.${uid}`, {})
   const [heatFilter, setHeatFilter] = useState('all')
 
   const today    = getToday()
