@@ -7,8 +7,12 @@ interface SyncStore {
   online: boolean
   syncing: boolean
   pendingCount: number
+  homeSyncing: boolean
+  homePending: boolean
   setOnline: (v: boolean) => void
   setPendingCount: (n: number) => void
+  setHomeSyncing: (v: boolean) => void
+  setHomePending: (v: boolean) => void
   initNetworkWatcher: () => () => void
   drainQueue: () => Promise<void>
 }
@@ -17,9 +21,13 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   online: typeof navigator !== 'undefined' ? navigator.onLine : true,
   syncing: false,
   pendingCount: loadQueue().length,
+  homeSyncing: false,
+  homePending: false,
 
   setOnline: (online) => set({ online }),
   setPendingCount: (pendingCount) => set({ pendingCount }),
+  setHomeSyncing: (homeSyncing) => set({ homeSyncing }),
+  setHomePending: (homePending) => set({ homePending }),
 
   initNetworkWatcher: () => {
     set({ online: navigator.onLine })

@@ -4,11 +4,15 @@ import { useAuthStore } from '../store/auth'
 import { useSyncStore } from '../store/sync'
 
 function SyncPill() {
-  const { online, syncing, pendingCount } = useSyncStore()
-  if (online && !syncing && pendingCount === 0) return null
+  const { online, syncing, pendingCount, homeSyncing, homePending } = useSyncStore()
+  const anySyncing = syncing || homeSyncing
+  const anyPending = pendingCount > 0 || homePending
+
+  if (online && !anySyncing && !anyPending) return null
   if (!online) return <span className="sync-pill sync-pill--offline">offline</span>
-  if (syncing)  return <span className="sync-pill sync-pill--syncing">sincronizando…</span>
-  return <span className="sync-pill sync-pill--pending">{pendingCount} pendente{pendingCount > 1 ? 's' : ''}</span>
+  if (anySyncing) return <span className="sync-pill sync-pill--syncing">sincronizando…</span>
+  if (pendingCount > 0) return <span className="sync-pill sync-pill--pending">{pendingCount} pendente{pendingCount > 1 ? 's' : ''}</span>
+  return <span className="sync-pill sync-pill--pending">salvando…</span>
 }
 
 const MODES = [

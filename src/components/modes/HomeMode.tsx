@@ -1,5 +1,8 @@
-import { useState, useCallback, useRef, memo } from 'react'
+import { useState, useCallback, useRef, useEffect, memo } from 'react'
 import { useAuthStore } from '../../store/auth'
+import { useSyncStore } from '../../store/sync'
+import { loadHomeData, saveHomeData } from '../../lib/homeData'
+import type { Habit, Task, ReflectStore } from '../../lib/homeData'
 
 /* ── date helpers ── */
 const getToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
@@ -15,12 +18,7 @@ const MONTHS_PT_FULL = ['janeiro','fevereiro','março','abril','maio','junho','j
 const MONTHS_PT_SHORT= ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
 const greeting = () => { const h = new Date().getHours(); if (h<5) return 'Boa madrugada'; if (h<12) return 'Bom dia'; if (h<18) return 'Boa tarde'; return 'Boa noite' }
 
-/* ── types ── */
-interface HabitHistory { [key: string]: 0 | 1 }
-interface Habit  { id: string; name: string; glyph: string; glyphCls: string; sub: string; history: HabitHistory }
-interface Task   { id: string; text: string; tag: string; tagCls: string; done: boolean }
-interface ReflectEntry { text: string; mood: number }
-interface ReflectStore { [key: string]: ReflectEntry }
+/* ── types (imported from lib/homeData) ── */
 
 /* ── seeds ── */
 const HABIT_SEED_DEF = [
@@ -490,12 +488,78 @@ const ConsistencyChart = memo(({ habits }: { habits: Habit[] }) => {
    HomeMode
 ================================================================ */
 export function HomeMode() {
-  const userId = useAuthStore(s => s.user?.id ?? 'local')
+  const user   = useAuthStore(s => s.user)
+  const userId = user?.id ?? 'local'
   const uid    = userId.slice(0, 8)
-  const [habits,     setHabits]     = useLocal<Habit[]>(`hm.habits.v2.${uid}`, seedAll)
-  const [tasks,      setTasks]      = useLocal<Task[]>(`hm.tasks.v2.${uid}`, () => [])
-  const [reflect,    setReflect]    = useLocal<ReflectStore>(`hm.reflect.v2.${uid}`, {})
+
+  const [habits,     _setHabits]  = useLocal<Habit[]>(`hm.habits.v2.${uid}`, seedAll)
+  const [tasks,      _setTasks]   = useLocal<Task[]>(`hm.tasks.v2.${uid}`, () => [])
+  const [reflect,    _setReflect] = useLocal<ReflectStore>(`hm.reflect.v2.${uid}`, {})
   const [heatFilter, setHeatFilter] = useState('all')
+
+  /* ── Supabase sync ── */
+  const { online, setHomeSyncing, setHomePending } = useSyncStore()
+  const pendingRef  = useRef(false)
+  const timerRef    = useRef<ReturnType<typeof setTimeout>>()
+  const habitsRef   = useRef(habits)
+  const tasksRef    = useRef(tasks)
+  const reflectRef  = useRef(reflect)
+  habitsRef.current  = habits
+  tasksRef.current   = tasks
+  reflectRef.current = reflect
+
+  const flush = useCallback(async () => {
+    if (!pendingRef.current || !user) return
+    setHomeSyncing(true)
+    try {
+      await saveHomeData(user.id, {
+        habits:  habitsRef.current,
+        tasks:   tasksRef.current,
+        reflect: reflectRef.current,
+      })
+      pendingRef.current = false
+      setHomePending(false)
+    } catch {
+      // will retry on next mutation or reconnect
+    } finally {
+      setHomeSyncing(false)
+    }
+  }, [user, setHomeSyncing, setHomePending])
+
+  const scheduleUpsert = useCallback(() => {
+    if (!user) return
+    pendingRef.current = true
+    setHomePending(true)
+    clearTimeout(timerRef.current)
+    if (online) timerRef.current = setTimeout(flush, 1500)
+  }, [user, online, flush, setHomePending])
+
+  // Load from Supabase on login — overrides localStorage
+  useEffect(() => {
+    if (!user) return
+    loadHomeData(user.id).then(data => {
+      if (data) { _setHabits(data.habits); _setTasks(data.tasks); _setReflect(data.reflect) }
+    }).catch(() => {})
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Flush pending when coming back online
+  const prevOnlineRef = useRef(online)
+  useEffect(() => {
+    if (online && !prevOnlineRef.current && pendingRef.current) flush()
+    prevOnlineRef.current = online
+  }, [online, flush])
+
+  const setHabits = useCallback((action: Habit[] | ((p: Habit[]) => Habit[])) => {
+    _setHabits(action); scheduleUpsert()
+  }, [_setHabits, scheduleUpsert])
+
+  const setTasks = useCallback((action: Task[] | ((p: Task[]) => Task[])) => {
+    _setTasks(action); scheduleUpsert()
+  }, [_setTasks, scheduleUpsert])
+
+  const setReflect = useCallback((action: ReflectStore | ((p: ReflectStore) => ReflectStore)) => {
+    _setReflect(action); scheduleUpsert()
+  }, [_setReflect, scheduleUpsert])
 
   const today    = getToday()
   const dateLabel = `${WEEKDAYS_PT[today.getDay()]} · ${today.getDate()} de ${MONTHS_PT_FULL[today.getMonth()]}`

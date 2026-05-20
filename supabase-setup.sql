@@ -24,3 +24,18 @@ CREATE POLICY "users_own_notes" ON notes
 
 -- Optional: index for fast updated_at queries
 CREATE INDEX notes_updated_at_idx ON notes (user_id, updated_at DESC);
+
+-- Home data (habits, tasks, reflections) — one row per user
+CREATE TABLE home_data (
+  user_id    UUID        PRIMARY KEY REFERENCES auth.users,
+  habits     JSONB       NOT NULL DEFAULT '[]',
+  tasks      JSONB       NOT NULL DEFAULT '[]',
+  reflect    JSONB       NOT NULL DEFAULT '{}',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE home_data ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "users_own_home_data" ON home_data
+  USING      (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
