@@ -10,5 +10,5 @@ export default defineConfig({
     exclude: ['tests/e2e/**', 'node_modules/**'],
   },
   clearScreen: false,
-  server: { port: 1420, strictPort: true },
+  server: { port: 1420, strictPort: true, host: true, allowedHosts: ['ruckus-simmering-agency.ngrok-free.dev'] },
 })

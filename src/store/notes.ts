@@ -1,6 +1,16 @@
 import { create } from 'zustand'
 import type { JSONContent } from '@tiptap/react'
-import { getNotes, saveNote, deleteNote as deleteNoteDb, moveNote as moveNoteDb, createNote as createNoteDb, type Note } from '../lib/db'
+import {
+  getNotes, saveNote, deleteNote as deleteNoteDb,
+  moveNote as moveNoteDb, insertNoteWithId, type Note,
+} from '../lib/db'
+import { newId } from '../lib/id'
+import {
+  saveNotesMeta, loadNotesMeta,
+  saveNoteContent as cacheNoteContent,
+  removeNoteContent, pruneContentKeys,
+} from '../lib/localCache'
+import { enqueue, loadQueue } from '../lib/syncQueue'
 import { toast } from 'sonner'
 
 const FOLDERS_KEY = 'excursus-folders'
@@ -14,6 +24,8 @@ function saveCustomFolders(folders: string[]) {
   try { localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders)) }
   catch {}
 }
+
+const EMPTY_CONTENT = '{"type":"doc","content":[{"type":"paragraph"}]}'
 
 interface NotesStore {
   notes: Note[]
@@ -33,6 +45,15 @@ interface NotesStore {
   cacheContent: (id: string, content: JSONContent) => void
 }
 
+function getSyncStore() {
+  // lazy import to avoid circular dep at module init time
+  return import('./sync').then(m => m.useSyncStore.getState())
+}
+
+function refreshPendingCount() {
+  getSyncStore().then(s => s.setPendingCount(loadQueue().length))
+}
+
 export const useNotesStore = create<NotesStore>((set, get) => ({
   notes: [],
   activeNoteId: null,
@@ -43,36 +64,61 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     try {
       const notes = await getNotes()
       set({ notes })
+      saveNotesMeta(notes)
+      pruneContentKeys(new Set(notes.map(n => n.id)))
     } catch {
-      toast.error('Erro ao carregar notas')
+      const cached = loadNotesMeta()
+      if (cached.length > 0) {
+        set({ notes: cached })
+      } else {
+        toast.error('Offline — sem notas em cache')
+      }
     }
   },
 
   setActiveNote: (id) => set({ activeNoteId: id }),
 
   saveNoteContent: async (id, title, folder, content) => {
+    const raw = JSON.stringify(content)
+    // optimistic: update state and local cache immediately
+    set(s => ({
+      notes: s.notes.map(n => n.id === id ? { ...n, title, updatedAt: new Date().toISOString() } : n),
+      contentCache: { ...s.contentCache, [id]: content },
+    }))
+    cacheNoteContent(id, raw)
+    saveNotesMeta(get().notes)
+
     try {
-      await saveNote({ id, title, folder, content: JSON.stringify(content) })
-      set(s => ({
-        notes: s.notes.map(n =>
-          n.id === id ? { ...n, title, updatedAt: new Date().toISOString() } : n
-        ),
-        contentCache: { ...s.contentCache, [id]: content },
-      }))
+      await saveNote({ id, title, folder, content: raw })
     } catch {
-      toast.error('Não foi possível salvar. Verifique o espaço em disco.')
+      const note = get().notes.find(n => n.id === id)
+      enqueue({
+        id, kind: 'save',
+        snapshot: { title, folder, content: raw, posX: note?.posX ?? 0, posY: note?.posY ?? 0 },
+        enqueuedAt: new Date().toISOString(),
+      })
+      refreshPendingCount()
     }
   },
 
   deleteNote: async (id) => {
+    // optimistic removal
+    set(s => ({
+      notes: s.notes.filter(n => n.id !== id),
+      activeNoteId: s.activeNoteId === id ? (s.notes.find(n => n.id !== id)?.id ?? null) : s.activeNoteId,
+    }))
+    saveNotesMeta(get().notes)
+    removeNoteContent(id)
+
     try {
       await deleteNoteDb(id)
-      set(s => ({
-        notes: s.notes.filter(n => n.id !== id),
-        activeNoteId: s.activeNoteId === id ? (s.notes.find(n => n.id !== id)?.id ?? null) : s.activeNoteId,
-      }))
     } catch {
-      toast.error('Erro ao deletar nota')
+      enqueue({
+        id, kind: 'delete',
+        snapshot: { title: '', folder: '', content: '', posX: 0, posY: 0 },
+        enqueuedAt: new Date().toISOString(),
+      })
+      refreshPendingCount()
     }
   },
 
@@ -81,36 +127,64 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
       notes: s.notes.map(n => n.id === id ? { ...n, posX, posY } : n),
     }))
     if (localOnly) return
+    saveNotesMeta(get().notes)
     try {
       await moveNoteDb(id, posX, posY)
     } catch {
-      toast.error('Erro ao mover nota')
+      const note = get().notes.find(n => n.id === id)
+      enqueue({
+        id, kind: 'move',
+        snapshot: {
+          title: note?.title ?? '', folder: note?.folder ?? '',
+          content: '', posX, posY,
+        },
+        enqueuedAt: new Date().toISOString(),
+      })
+      refreshPendingCount()
     }
   },
 
   createNote: async (title = 'Sem título', folder = 'inbox', posX = 120, posY = 120) => {
+    const id = newId()
+    const now = new Date().toISOString()
+    const newNote: Note = { id, title, folder, posX, posY, posW: 320, wordCount: 0, createdAt: now, updatedAt: now }
+
+    // optimistic: note appears immediately
+    set(s => ({ notes: [newNote, ...s.notes], activeNoteId: id }))
+    cacheNoteContent(id, EMPTY_CONTENT)
+    saveNotesMeta(get().notes)
+
     try {
-      const id = await createNoteDb({ title, folder, posX, posY })
-      await get().loadNotes()
-      set({ activeNoteId: id })
-      return id
-    } catch (e) {
-      toast.error('Erro ao criar nota')
-      throw e
+      await insertNoteWithId({ id, title, folder, content: EMPTY_CONTENT, posX, posY })
+    } catch {
+      enqueue({
+        id, kind: 'create',
+        snapshot: { title, folder, content: EMPTY_CONTENT, posX, posY },
+        enqueuedAt: now,
+      })
+      refreshPendingCount()
     }
+    return id
   },
 
   renameNote: async (id, title) => {
     const note = get().notes.find(n => n.id === id)
     if (!note) return
     const content = get().contentCache[id] ?? { type: 'doc', content: [{ type: 'paragraph' }] }
+    const raw = JSON.stringify(content)
+
+    set(s => ({ notes: s.notes.map(n => n.id === id ? { ...n, title } : n) }))
+    saveNotesMeta(get().notes)
+
     try {
-      await saveNote({ id, title, folder: note.folder, content: JSON.stringify(content) })
-      set(s => ({
-        notes: s.notes.map(n => n.id === id ? { ...n, title } : n),
-      }))
+      await saveNote({ id, title, folder: note.folder, content: raw })
     } catch {
-      toast.error('Erro ao renomear nota')
+      enqueue({
+        id, kind: 'save',
+        snapshot: { title, folder: note.folder, content: raw, posX: note.posX, posY: note.posY },
+        enqueuedAt: new Date().toISOString(),
+      })
+      refreshPendingCount()
     }
   },
 
@@ -118,13 +192,20 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     const note = get().notes.find(n => n.id === id)
     if (!note) return
     const content = get().contentCache[id] ?? { type: 'doc', content: [{ type: 'paragraph' }] }
+    const raw = JSON.stringify(content)
+
+    set(s => ({ notes: s.notes.map(n => n.id === id ? { ...n, folder } : n) }))
+    saveNotesMeta(get().notes)
+
     try {
-      await saveNote({ id, title: note.title, folder, content: JSON.stringify(content) })
-      set(s => ({
-        notes: s.notes.map(n => n.id === id ? { ...n, folder } : n),
-      }))
+      await saveNote({ id, title: note.title, folder, content: raw })
     } catch {
-      toast.error('Erro ao mover nota')
+      enqueue({
+        id, kind: 'save',
+        snapshot: { title: note.title, folder, content: raw, posX: note.posX, posY: note.posY },
+        enqueuedAt: new Date().toISOString(),
+      })
+      refreshPendingCount()
     }
   },
 

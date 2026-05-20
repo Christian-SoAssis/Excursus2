@@ -661,6 +661,12 @@
 }
 @media (max-width: 640px) {
   .hm { padding: 24px 18px 60px; }
-  .hm-hero__title { font-size: 38px; }
+  .hm-hero__title { font-size: 32px; }
+  .hm-hero__meta { flex-direction: column; gap: 4px; }
+  .hm-hero__stat { flex: unset; }
   .hm-quick { grid-template-columns: 1fr; }
+  .hm-heatmap__cells { gap: 2px; }
+  .hm-heatmap__cell { width: 12px; height: 12px; }
+  .hm-habits__add { width: 100%; }
+  .hm-reflect__field { min-height: 120px; }
 }

@@ -73,6 +73,7 @@ export function GraphMode() {
   const [simNodes, setSimNodes] = useState<SimNode[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
+  const [panelOpen, setPanelOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [minDeg, setMinDeg] = useState(0)
@@ -261,7 +262,7 @@ export function GraphMode() {
                 style={{ cursor: 'pointer', opacity: dim ? 0.15 : 1, transition: 'opacity .2s' }}
                 onMouseEnter={() => setHovered(n.id)}
                 onMouseLeave={() => setHovered(null)}
-                onClick={() => setSelected(n.id)}
+                onClick={() => { setSelected(n.id); setPanelOpen(true) }}
                 onMouseDown={e => onNodeDown(e, n.id)}>
                 {isFocus && <circle r={r + 9} fill="none" stroke={color} strokeWidth="1.2" opacity="0.35" />}
                 <circle r={r} fill="var(--bg-elevated)" stroke={color} strokeWidth={isSelected ? 2.5 : 1.5} />
@@ -304,7 +305,9 @@ export function GraphMode() {
       </div>
 
       {/* Panel */}
-      <aside className="graph__panel">
+      <aside className={`graph__panel${panelOpen ? ' is-open' : ''}`}>
+        <div className="graph__panel-drag-handle" />
+        <button className="graph__panel-close" onClick={() => setPanelOpen(false)} aria-label="Fechar">×</button>
         {selNote ? (
           <>
             <div className="graph__panel-head">

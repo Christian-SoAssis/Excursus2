@@ -12,12 +12,14 @@ import { LoginPage } from './components/auth/LoginPage'
 import { useUIStore } from './store/ui'
 import { useNotesStore } from './store/notes'
 import { useAuthStore } from './store/auth'
+import { useSyncStore } from './store/sync'
 import { supabaseConfigured } from './lib/supabase'
 
 export function App() {
   const { mode, theme, accent, fontScale, showHandles } = useUIStore()
   const loadNotes = useNotesStore(s => s.loadNotes)
   const { user, loading, initialize } = useAuthStore()
+  const { initNetworkWatcher, drainQueue } = useSyncStore()
 
   useEffect(() => { initialize() }, [])
 
@@ -34,7 +36,11 @@ export function App() {
   }, [showHandles])
 
   useEffect(() => {
-    if (user) loadNotes()
+    if (!user) return
+    loadNotes()
+    const cleanup = initNetworkWatcher()
+    drainQueue()
+    return cleanup
   }, [user])
 
   useEffect(() => {

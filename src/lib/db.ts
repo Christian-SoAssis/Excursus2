@@ -1,5 +1,6 @@
 import type { JSONContent } from '@tiptap/react'
 import { supabase } from './supabase'
+import { newId } from './id'
 
 export interface Note {
   id: string
@@ -31,10 +32,6 @@ function mapRow(r: Row): Note {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   }
-}
-
-function newId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
 }
 
 function countWords(content: JSONContent): number {
@@ -110,6 +107,22 @@ export async function createNote(params: {
     })
   if (error) throw new Error(error.message)
   return id
+}
+
+export async function insertNoteWithId(params: {
+  id: string; title: string; folder: string
+  content: string; posX: number; posY: number
+}): Promise<void> {
+  const { error } = await supabase.from('notes').insert({
+    id: params.id,
+    title: params.title,
+    folder: params.folder,
+    content: params.content,
+    pos_x: params.posX,
+    pos_y: params.posY,
+    word_count: 0,
+  })
+  if (error) throw new Error(error.message)
 }
 
 export async function deleteNote(id: string): Promise<void> {

@@ -12,6 +12,7 @@ import { CalloutBlock } from './extensions/CalloutBlock'
 import { FocusMode } from './extensions/FocusMode'
 import { useNotesStore } from '../../store/notes'
 import { getNoteContent } from '../../lib/db'
+import { loadNoteContent } from '../../lib/localCache'
 import { BacklinkPicker } from '../ui/BacklinkPicker'
 import { SlashMenu, type SlashItem } from '../ui/SlashMenu'
 import { FormatToolbar } from '../ui/FormatToolbar'
@@ -107,7 +108,13 @@ export function Editor({ noteId }: EditorProps) {
       editor.commands.setContent(content)
       cacheContent(noteId, content)
     }).catch(() => {
-      editor.commands.setContent({ type: 'doc', content: [{ type: 'paragraph' }] })
+      const cachedRaw = loadNoteContent(noteId)
+      let content: JSONContent = { type: 'doc', content: [{ type: 'paragraph' }] }
+      if (cachedRaw) {
+        try { content = JSON.parse(cachedRaw) } catch {}
+      }
+      editor.commands.setContent(content)
+      cacheContent(noteId, content)
     })
   }, [noteId, editor])
 

@@ -11,11 +11,13 @@ interface UIStore {
   accent: Accent
   fontScale: number
   showHandles: boolean
+  sidebarOpen: boolean
   setMode: (mode: Mode) => void
   setTheme: (theme: Theme) => void
   setAccent: (accent: Accent) => void
   setFontScale: (scale: number) => void
   setShowHandles: (show: boolean) => void
+  setSidebarOpen: (open: boolean) => void
 }
 
 export const useUIStore = create<UIStore>()(
@@ -26,11 +28,13 @@ export const useUIStore = create<UIStore>()(
       accent: 'terracotta',
       fontScale: 1.0,
       showHandles: true,
+      sidebarOpen: false,
       setMode: (mode) => set({ mode }),
       setTheme: (theme) => set({ theme }),
       setAccent: (accent) => set({ accent }),
       setFontScale: (fontScale) => set({ fontScale }),
       setShowHandles: (showHandles) => set({ showHandles }),
+      setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
     }),
     { name: 'excursus-ui' }
   )

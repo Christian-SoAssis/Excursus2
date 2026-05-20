@@ -1,6 +1,15 @@
 import { useUIStore } from '../store/ui'
 import { useNotesStore } from '../store/notes'
 import { useAuthStore } from '../store/auth'
+import { useSyncStore } from '../store/sync'
+
+function SyncPill() {
+  const { online, syncing, pendingCount } = useSyncStore()
+  if (online && !syncing && pendingCount === 0) return null
+  if (!online) return <span className="sync-pill sync-pill--offline">offline</span>
+  if (syncing)  return <span className="sync-pill sync-pill--syncing">sincronizando…</span>
+  return <span className="sync-pill sync-pill--pending">{pendingCount} pendente{pendingCount > 1 ? 's' : ''}</span>
+}
 
 const MODES = [
   { id: 'home'     as const, label: 'Hoje' },
@@ -12,7 +21,7 @@ const MODES = [
 ]
 
 export function AppBar() {
-  const { mode, theme, setMode, setTheme } = useUIStore()
+  const { mode, theme, setMode, setTheme, sidebarOpen, setSidebarOpen } = useUIStore()
   const createNote = useNotesStore(s => s.createNote)
   const { user, signOut } = useAuthStore()
 
@@ -22,6 +31,15 @@ export function AppBar() {
         <div className="appbar__mark">E</div>
         <div className="appbar__title">Excursus <em>· 2</em></div>
       </div>
+      {mode === 'floating' && (
+        <button
+          className="appbar__hamburger"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label="Alternar painel de notas"
+        >
+          ☰
+        </button>
+      )}
       <div className="appbar__center">
         {MODES.map(m => (
           <button key={m.id}
@@ -33,8 +51,8 @@ export function AppBar() {
         ))}
       </div>
       <div className="appbar__right">
-        <button className="appbar__tab" onClick={() => createNote()}
-          data-testid="new-note-btn">+ nota</button>
+        <SyncPill />
+        <button className="appbar__tab" onClick={() => createNote()} data-testid="new-note-btn">+ nota</button>
         <button className="appbar__tab" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
           {theme === 'dark' ? '☽' : '☀'}
         </button>
