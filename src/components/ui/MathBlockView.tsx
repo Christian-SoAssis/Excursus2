@@ -2,8 +2,9 @@ import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { useEffect, useRef, useState } from 'react'
 
 export function MathBlockView({ node, updateAttributes }: NodeViewProps) {
-  const [editing, setEditing] = useState(!node.attrs.src)
-  const [src, setSrc] = useState<string>(node.attrs.src || '')
+  const src = node.attrs.src as string          // always in sync with ProseMirror
+  const [editing, setEditing] = useState(!src)
+  const [draft, setDraft] = useState(src)       // local copy only while editing
   const renderRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -17,7 +18,8 @@ export function MathBlockView({ node, updateAttributes }: NodeViewProps) {
     })
   }, [src, editing])
 
-  const commit = () => { setEditing(false); updateAttributes({ src }) }
+  const startEditing = () => { setDraft(src); setEditing(true) }
+  const commit = () => { updateAttributes({ src: draft }); setEditing(false) }
 
   return (
     <NodeViewWrapper className="math-block">
@@ -25,14 +27,14 @@ export function MathBlockView({ node, updateAttributes }: NodeViewProps) {
         <input
           autoFocus
           className="math-block__src"
-          value={src}
-          onChange={e => setSrc(e.target.value)}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commit() } }}
-          placeholder="LaTeX expression..."
+          placeholder="Expressão LaTeX..."
         />
       ) : (
-        <div ref={renderRef} onClick={() => setEditing(true)} style={{ cursor: 'pointer' }} />
+        <div ref={renderRef} onClick={startEditing} style={{ cursor: 'pointer' }} />
       )}
     </NodeViewWrapper>
   )

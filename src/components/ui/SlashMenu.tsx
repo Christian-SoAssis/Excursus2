@@ -8,17 +8,22 @@ export interface SlashItem {
 }
 
 const SLASH_ITEMS: SlashItem[] = [
-  { type: 'h1',      label: 'Título grande',   desc: 'Heading 1',         kbd: '#' },
-  { type: 'h2',      label: 'Título médio',    desc: 'Heading 2',         kbd: '##' },
-  { type: 'h3',      label: 'Título pequeno',  desc: 'Heading 3',         kbd: '###' },
-  { type: 'p',       label: 'Parágrafo',       desc: 'Texto corrido',     kbd: '' },
-  { type: 'todo',    label: 'Tarefa',          desc: 'Checkbox + texto',  kbd: '[]' },
-  { type: 'list',    label: 'Lista',           desc: 'Marcadores',        kbd: '-' },
-  { type: 'quote',   label: 'Citação',         desc: 'Bloco destacado',   kbd: '>' },
-  { type: 'code',    label: 'Código',          desc: 'Bloco monospace',   kbd: '```' },
-  { type: 'math',    label: 'Matemática',      desc: 'LaTeX / KaTeX',     kbd: '$$' },
-  { type: 'callout', label: 'Callout',         desc: 'Caixa de destaque', kbd: '!' },
-  { type: 'divider', label: 'Divisor',         desc: 'Linha horizontal',  kbd: '---' },
+  { type: 'h1',        label: 'Título grande',   desc: 'Heading 1',              kbd: '#' },
+  { type: 'h2',        label: 'Título médio',    desc: 'Heading 2',              kbd: '##' },
+  { type: 'h3',        label: 'Título pequeno',  desc: 'Heading 3',              kbd: '###' },
+  { type: 'p',         label: 'Parágrafo',       desc: 'Texto corrido',          kbd: '' },
+  { type: 'todo',      label: 'Tarefa',          desc: 'Checkbox + texto',       kbd: '[ ]' },
+  { type: 'list',      label: 'Lista',           desc: 'Marcadores',             kbd: '-' },
+  { type: 'quote',     label: 'Citação',         desc: 'Bloco destacado',        kbd: '>' },
+  { type: 'code',      label: 'Código',          desc: 'Bloco monospace',        kbd: '```' },
+  { type: 'table',     label: 'Tabela',          desc: '3×3 com cabeçalho',      kbd: '' },
+  { type: 'image',     label: 'Imagem (arquivo)',desc: 'Upload do dispositivo',  kbd: '' },
+  { type: 'image-url', label: 'Imagem (URL)',    desc: 'Embed por link',         kbd: '' },
+  { type: 'pdf',       label: 'PDF',             desc: 'Upload e visualizador',  kbd: '' },
+  { type: 'pdf-url',   label: 'PDF (URL)',       desc: 'Embed por link',         kbd: '' },
+  { type: 'math',      label: 'Matemática',      desc: 'LaTeX / KaTeX',          kbd: '$$' },
+  { type: 'callout',   label: 'Callout',         desc: 'Caixa de destaque',      kbd: '!' },
+  { type: 'divider',   label: 'Divisor',         desc: 'Linha horizontal',       kbd: '---' },
 ]
 
 interface SlashMenuProps {
@@ -40,6 +45,11 @@ export function SlashMenu({ pos, query, onPick, onClose }: SlashMenuProps) {
   }, [query])
 
   useEffect(() => { setSel(0) }, [query])
+
+  // Auto-dismiss when nothing matches after 3+ characters
+  useEffect(() => {
+    if (items.length === 0 && query.length >= 3) onClose()
+  }, [items.length, query, onClose])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
