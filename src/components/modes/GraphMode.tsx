@@ -231,18 +231,30 @@ export function GraphMode() {
             </radialGradient>
           </defs>
 
-          {/* Edges */}
+          {/* Edges — glow pass first (renders behind), then crisp line */}
           {edgePairs.map(([a, b], i) => {
             const A = nodeById[a], B = nodeById[b]
             if (!A || !B) return null
             const dim = !!focusedId && !(neighborSet.has(a) && neighborSet.has(b))
             const hot = !!focusedId && (a === focusedId || b === focusedId)
-            return (
+            if (dim) return (
               <line key={i} x1={A.x} y1={A.y} x2={B.x} y2={B.y}
-                stroke={hot ? 'var(--accent-terracotta)' : 'var(--border-strong)'}
-                strokeWidth={hot ? 1.6 : 1}
-                strokeOpacity={dim ? 0.06 : hot ? 0.7 : 0.35}
-              />
+                stroke="var(--border-strong)" strokeWidth={1} strokeOpacity={0.06} />
+            )
+            return (
+              <g key={i}>
+                {hot && <>
+                  <line x1={A.x} y1={A.y} x2={B.x} y2={B.y}
+                    stroke="var(--accent-terracotta)" strokeWidth={9} strokeOpacity={0.07} />
+                  <line x1={A.x} y1={A.y} x2={B.x} y2={B.y}
+                    stroke="var(--accent-terracotta)" strokeWidth={3.5} strokeOpacity={0.2} />
+                </>}
+                <line x1={A.x} y1={A.y} x2={B.x} y2={B.y}
+                  stroke={hot ? 'var(--accent-terracotta)' : 'var(--border-strong)'}
+                  strokeWidth={hot ? 1.6 : 1}
+                  strokeOpacity={hot ? 0.75 : 0.35}
+                />
+              </g>
             )
           })}
 
@@ -264,9 +276,13 @@ export function GraphMode() {
                 onMouseLeave={() => setHovered(null)}
                 onClick={() => { setSelected(n.id); setPanelOpen(true) }}
                 onMouseDown={e => onNodeDown(e, n.id)}>
-                {isFocus && <circle r={r + 9} fill="none" stroke={color} strokeWidth="1.2" opacity="0.35" />}
+                {/* neon glow halos — pure SVG filled circles, no CSS filter */}
+                <circle r={r * 3.2} fill={color} opacity={isFocus ? 0.07 : 0.03} />
+                <circle r={r * 2}   fill={color} opacity={isFocus ? 0.12 : 0.05} />
+                <circle r={r * 1.4} fill={color} opacity={isFocus ? 0.18 : 0.09} />
+                {isFocus && <circle r={r + 9} fill="none" stroke={color} strokeWidth="1.2" opacity="0.4" />}
                 <circle r={r} fill="var(--bg-elevated)" stroke={color} strokeWidth={isSelected ? 2.5 : 1.5} />
-                {isSelected && <circle r={r - 3} fill={color} opacity="0.7" />}
+                {isSelected && <circle r={r - 3} fill={color} opacity="0.75" />}
                 {showLabels && (
                   <text textAnchor="middle" dy={r + 15}
                     fontFamily="var(--font-sans)" fontSize="11"

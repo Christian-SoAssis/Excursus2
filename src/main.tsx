@@ -4,6 +4,7 @@ import { App } from './App'
 import './styles/globals.css'
 import './styles/home.css'
 import './styles/auth.css'
+import 'katex/dist/katex.min.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

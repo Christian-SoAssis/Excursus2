@@ -408,18 +408,8 @@ input, textarea { font: inherit; color: inherit; }
 /* Divider */
 .divider { height: 1px; background: var(--border-subtle); margin: 24px 0; }
 
-/* Task list */
-.doc ul[data-type="taskList"] { list-style: none; padding: 0; }
-.doc ul[data-type="taskList"] li[data-type="taskItem"] {
-  display: flex; align-items: flex-start; gap: 10px; padding: 3px 0;
-}
-.doc ul[data-type="taskItem"] > label { flex-shrink: 0; margin-top: 4px; cursor: pointer; }
-.doc ul[data-type="taskList"] li[data-type="taskItem"] > label input[type="checkbox"] {
-  width: 16px; height: 16px; border-radius: 4px; accent-color: var(--accent-emerald); cursor: pointer;
-}
-.doc ul[data-type="taskList"] li[data-type="taskItem"][data-checked="true"] > div {
-  color: var(--text-muted); text-decoration: line-through;
-}
+/* Task list — checkbox appearance is handled entirely by TaskItemView React NodeView */
+.doc ul[data-type="taskList"] { list-style: none; padding-left: 0; margin: 6px 0; }
 
 /* Table */
 .doc table {
@@ -436,6 +426,24 @@ input, textarea { font: inherit; color: inherit; }
 }
 .doc table .selectedCell { background: rgb(var(--accent-electric-rgb) / 0.08); }
 .doc .tableWrapper { overflow-x: auto; }
+
+/* Table toolbar (BubbleMenu) */
+.tbl-bar {
+  display: flex; align-items: center; gap: 2px;
+  padding: 4px 6px;
+  background: var(--bg-glass); backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+.tbl-bar__btn {
+  padding: 4px 9px; border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--text-secondary);
+  transition: all .12s var(--ease); white-space: nowrap;
+}
+.tbl-bar__btn:hover { background: rgb(var(--accent-electric-rgb) / 0.1); color: var(--text-primary); }
+.tbl-bar__btn--del:hover { background: rgb(var(--accent-terracotta-rgb) / 0.12); color: var(--accent-terracotta); }
+.tbl-bar__sep { width: 1px; height: 18px; background: var(--border-subtle); margin: 0 2px; }
 
 /* Image */
 .doc img {
@@ -703,6 +711,27 @@ input, textarea { font: inherit; color: inherit; }
   transition: background .15s var(--ease), color .15s var(--ease);
 }
 .spatial__zoom-flow:hover { background: var(--bg-surface); color: var(--text-primary); }
+
+/* Folder filter bar */
+.spatial__filterbar {
+  position: absolute; top: 14px; left: 14px; z-index: 10;
+  display: flex; align-items: center; gap: 4px; padding: 4px;
+  background: var(--bg-glass); backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm); pointer-events: all;
+  max-width: calc(100vw - 28px); overflow-x: auto;
+}
+.spatial__filter-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; height: 28px; border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em;
+  color: var(--text-secondary); white-space: nowrap; cursor: pointer;
+  transition: background .15s var(--ease), color .15s var(--ease);
+}
+.spatial__filter-chip:hover { background: var(--bg-surface); color: var(--text-primary); }
+.spatial__filter-chip[data-active] { background: var(--bg-surface); color: var(--text-primary); }
+.spatial__filter-chip span { color: var(--text-faint); }
+.spatial__filter-chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 
 /* Editable title in bar */
 .spatial__node__bar-title--input {

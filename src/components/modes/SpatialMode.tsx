@@ -3,6 +3,21 @@ import { useNotesStore } from '../../store/notes'
 import { Editor } from '../editor/Editor'
 import { getGraph, type GraphEdge } from '../../lib/db'
 
+const FOLDER_COLOR: Record<string, string> = {
+  inbox:        'var(--accent-terracotta)',
+  método:       'var(--accent-terracotta)',
+  técnico:      'var(--accent-emerald)',
+  pessoas:      'var(--accent-electric)',
+  ferramentas:  'var(--accent-amber)',
+}
+const FOLDER_LABEL: Record<string, string> = {
+  inbox:        'Inbox',
+  método:       'Método',
+  técnico:      'Técnico',
+  pessoas:      'Pessoas',
+  ferramentas:  'Ferramentas',
+}
+
 interface EdgePath { d: string }
 interface DragState {
   id: string
@@ -41,6 +56,7 @@ export function SpatialMode() {
   const [panStart,    setPanStart]    = useState<{ x: number; y: number } | null>(null)
   const [edges,       setEdges]       = useState<GraphEdge[]>([])
   const [localSizes,  setLocalSizes]  = useState<Record<string, NodeSize>>(loadSizes)
+  const [folderFilter, setFolderFilter] = useState<string | null>(null)
 
   const stageRef     = useRef<HTMLDivElement>(null)
   const dragRef      = useRef<DragState | null>(null)
@@ -183,39 +199,56 @@ export function SpatialMode() {
     await createNote('Sem título', 'inbox', x, y)
   }
 
-  /* ── edge paths ── */
-  const edgePaths: EdgePath[] = useMemo(() => {
-    return edges.map(edge => {
-      const A = notes.find(n => n.id === edge.aId)
-      const B = notes.find(n => n.id === edge.bId)
-      if (!A || !B) return null
-      const aw = localSizes[A.id]?.w ?? A.posW
-      const bw = localSizes[B.id]?.w ?? B.posW
-      const ax = A.posX + aw / 2, ay = A.posY + 40
-      const bx = B.posX + bw / 2, by = B.posY + 40
-      const dx = (bx - ax) * 0.4
-      return { d: `M ${ax} ${ay} C ${ax+dx} ${ay}, ${bx-dx} ${by}, ${bx} ${by}` }
-    }).filter((p): p is EdgePath => p !== null)
-  }, [notes, edges, localSizes])
+  /* ── derived: visible notes + folder metadata ── */
+  const folders = useMemo(() => [...new Set(notes.map(n => n.folder))], [notes])
+  const folderCounts = useMemo(() => {
+    const c: Record<string, number> = {}
+    notes.forEach(n => { c[n.folder] = (c[n.folder] ?? 0) + 1 })
+    return c
+  }, [notes])
+  const visibleNotes = useMemo(
+    () => folderFilter ? notes.filter(n => n.folder === folderFilter) : notes,
+    [notes, folderFilter]
+  )
 
-  /* ── flow layout (por links) ── */
+  /* ── edge paths (only between visible notes) ── */
+  const edgePaths: EdgePath[] = useMemo(() => {
+    const visIds = new Set(visibleNotes.map(n => n.id))
+    return edges
+      .filter(e => visIds.has(e.aId) && visIds.has(e.bId))
+      .map(edge => {
+        const A = visibleNotes.find(n => n.id === edge.aId)
+        const B = visibleNotes.find(n => n.id === edge.bId)
+        if (!A || !B) return null
+        const aw = localSizes[A.id]?.w ?? A.posW
+        const bw = localSizes[B.id]?.w ?? B.posW
+        const ax = A.posX + aw / 2, ay = A.posY + 40
+        const bx = B.posX + bw / 2, by = B.posY + 40
+        const dx = (bx - ax) * 0.4
+        return { d: `M ${ax} ${ay} C ${ax+dx} ${ay}, ${bx-dx} ${by}, ${bx} ${by}` }
+      }).filter((p): p is EdgePath => p !== null)
+  }, [visibleNotes, edges, localSizes])
+
+  /* ── flow layout (por links, opera apenas nas notas visíveis) ── */
   const handleFlowLayout = useCallback(() => {
-    const hasLinks = edges.length > 0
+    const visIds = new Set(visibleNotes.map(n => n.id))
+    const visEdges = edges.filter(e => visIds.has(e.aId) && visIds.has(e.bId))
+    const hasLinks = visEdges.length > 0
 
     if (hasLinks) {
       const out = new Map<string, string[]>()
       const inc = new Map<string, number>()
-      for (const n of notes) { out.set(n.id, []); inc.set(n.id, 0) }
-      for (const e of edges) {
+      for (const n of visibleNotes) { out.set(n.id, []); inc.set(n.id, 0) }
+      for (const e of visEdges) {
         out.get(e.aId)?.push(e.bId)
         inc.set(e.bId, (inc.get(e.bId) ?? 0) + 1)
       }
       const level = new Map<string, number>()
       const queue: string[] = []
-      for (const n of notes) {
+      for (const n of visibleNotes) {
         if ((inc.get(n.id) ?? 0) === 0) { level.set(n.id, 0); queue.push(n.id) }
       }
-      if (queue.length === 0) notes.forEach(n => { level.set(n.id, 0); queue.push(n.id) })
+      if (queue.length === 0) visibleNotes.forEach(n => { level.set(n.id, 0); queue.push(n.id) })
       let qi = 0
       while (qi < queue.length) {
         const id = queue[qi++]
@@ -228,7 +261,7 @@ export function SpatialMode() {
           }
         }
       }
-      for (const n of notes) { if (!level.has(n.id)) level.set(n.id, 0) }
+      for (const n of visibleNotes) { if (!level.has(n.id)) level.set(n.id, 0) }
       const byLevel = new Map<number, string[]>()
       for (const [id, l] of level) {
         if (!byLevel.has(l)) byLevel.set(l, [])
@@ -244,10 +277,10 @@ export function SpatialMode() {
         ids.forEach((id, i) => moveNote(id, x, startY + i * (FLOW_NODE_H + FLOW_V_GAP), false))
       }
     } else {
-      const folders = [...new Set(notes.map(n => n.folder))]
+      const folderList = [...new Set(visibleNotes.map(n => n.folder))]
       let groupX = 80
-      for (const folder of folders) {
-        const group = notes.filter(n => n.folder === folder)
+      for (const folder of folderList) {
+        const group = visibleNotes.filter(n => n.folder === folder)
         group.forEach((n, i) => {
           const col = i % GRID_COLS
           const row = Math.floor(i / GRID_COLS)
@@ -257,16 +290,39 @@ export function SpatialMode() {
         groupX += cols * (FLOW_NODE_W + GRID_H_GAP) + 140
       }
     }
-  }, [notes, edges, moveNote])
+  }, [visibleNotes, edges, moveNote])
 
   return (
     <div className="spatial" ref={stageRef} onPointerDown={onStageDown} onDoubleClick={onStageDblClick}>
       <div className="spatial__grid" />
+
+      {/* Folder filter bar */}
+      <div className="spatial__filterbar" onPointerDown={e => e.stopPropagation()}>
+        <button
+          className="spatial__filter-chip"
+          data-active={folderFilter === null || undefined}
+          onClick={() => setFolderFilter(null)}
+        >
+          todas <span>{notes.length}</span>
+        </button>
+        {folders.map(f => (
+          <button
+            key={f}
+            className="spatial__filter-chip"
+            data-active={folderFilter === f || undefined}
+            onClick={() => setFolderFilter(folderFilter === f ? null : f)}
+          >
+            <span className="spatial__filter-chip-dot" style={{ background: FOLDER_COLOR[f] ?? 'var(--accent-terracotta)' }} />
+            {FOLDER_LABEL[f] ?? f} <span>{folderCounts[f] ?? 0}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="spatial__canvas" style={{ transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})` }}>
         <svg className="spatial__edges" style={{ width: 6000, height: 4000, position: 'absolute', top: 0, left: 0 }}>
           {edgePaths.map((p, i) => <path key={i} d={p.d} />)}
         </svg>
-        {notes.map(note => {
+        {visibleNotes.map(note => {
           const sz = localSizes[note.id]
           const w  = sz?.w ?? note.posW
           const h  = sz?.h ?? 200
