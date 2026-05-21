@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 
 export interface HabitHistory { [key: string]: 0 | 1 }
 export interface Habit  { id: string; name: string; glyph: string; glyphCls: string; sub: string; history: HabitHistory }
-export interface Task   { id: string; text: string; tag: string; tagCls: string; done: boolean }
+export interface Task   { id: string; text: string; tag: string; tagCls: string; done: boolean; gcalEventId?: string }
 export interface ReflectEntry { text: string; mood: number }
 export type ReflectStore = { [key: string]: ReflectEntry }
 

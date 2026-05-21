@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Toaster } from 'sonner'
+import { handleOAuthPopupCallback } from './lib/googleAuth'
 import { AppBar } from './components/AppBar'
 import { FloatingMode } from './components/modes/FloatingMode'
 import { SpatialMode } from './components/modes/SpatialMode'
@@ -20,6 +21,9 @@ export function App() {
   const loadNotes = useNotesStore(s => s.loadNotes)
   const { user, loading, initialize } = useAuthStore()
   const { initNetworkWatcher, drainQueue } = useSyncStore()
+
+  // Handle Google OAuth popup callback — must run before any render logic
+  useEffect(() => { handleOAuthPopupCallback() }, [])
 
   useEffect(() => { initialize() }, [])
 

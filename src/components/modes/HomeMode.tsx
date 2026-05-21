@@ -1,8 +1,12 @@
 import { useState, useCallback, useRef, useEffect, memo } from 'react'
+import { toast } from 'sonner'
 import { useAuthStore } from '../../store/auth'
 import { useSyncStore } from '../../store/sync'
 import { loadHomeData, saveHomeData } from '../../lib/homeData'
 import type { Habit, Task, ReflectStore } from '../../lib/homeData'
+import { connectGoogleCalendar, clearTokens, isConnected } from '../../lib/googleAuth'
+import { fetchTodayEvents, createEvent, updateEventSummary, deleteEvent } from '../../lib/googleCalendar'
+import type { CalendarEvent } from '../../lib/googleCalendar'
 
 /* ── date helpers ── */
 const getToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
@@ -236,14 +240,104 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
 })
 
 /* ================================================================
+   CalendarCard
+================================================================ */
+const CalendarIcon = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="1" y="2" width="14" height="13" rx="2"/>
+    <path d="M1 6h14M5 1v2M11 1v2"/>
+  </svg>
+)
+
+const CalendarCard = memo(({
+  connected, events, loading, error, tasks,
+  onConnect, onDisconnect, onImport, onRefresh, connecting,
+}: {
+  connected: boolean; events: CalendarEvent[]; loading: boolean; error: string | null
+  tasks: Task[]; onConnect: () => void; onDisconnect: () => void
+  onImport: (e: CalendarEvent) => void; onRefresh: () => void; connecting: boolean
+}) => {
+  const importedIds = new Set(tasks.map(t => t.gcalEventId).filter(Boolean))
+
+  const formatTime = (ev: CalendarEvent) => {
+    if (ev.start.date && !ev.start.dateTime) return 'dia todo'
+    const dt = new Date(ev.start.dateTime!)
+    return dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  return (
+    <div className="hm-card">
+      <div className="hm-card__head">
+        <h2 className="hm-card__title">Calendário <em>· hoje</em></h2>
+        <div className="hm-card__meta hm-card__meta--row">
+          {connected && <>
+            <span><b>{events.length}</b> eventos</span>
+            <button className="hm-habit-add-btn" onClick={onRefresh} disabled={loading} title="Atualizar">
+              {loading ? '…' : '↻'}
+            </button>
+          </>}
+        </div>
+      </div>
+
+      {!connected ? (
+        <div className="hm-gcal-connect">
+          <p className="hm-gcal-connect__desc">
+            Veja e sincronize seus eventos do Google Calendar com as tarefas de hoje.
+          </p>
+          <button className="hm-gcal-connect__btn" onClick={onConnect} disabled={connecting}>
+            {connecting ? 'Aguardando autorização…' : 'Conectar Google Calendar'}
+          </button>
+        </div>
+      ) : error ? (
+        <div className="hm-gcal-state">
+          <span className="hm-gcal-state__msg">{error}</span>
+          <button className="hm-gcal-state__retry" onClick={onRefresh}>Tentar novamente</button>
+        </div>
+      ) : loading ? (
+        <div className="hm-gcal-state"><span className="hm-gcal-state__msg">Carregando…</span></div>
+      ) : events.length === 0 ? (
+        <div className="hm-gcal-state"><span className="hm-gcal-state__msg">Nenhum evento para hoje.</span></div>
+      ) : (
+        <div className="hm-gcal-events">
+          {events.map(ev => {
+            const isTask = importedIds.has(ev.id)
+            return (
+              <div key={ev.id} className="hm-gcal-event" data-imported={isTask || undefined}>
+                <span className="hm-gcal-event__time">{formatTime(ev)}</span>
+                <span className="hm-gcal-event__title">{ev.summary}</span>
+                {isTask
+                  ? <span className="hm-gcal-event__badge">✓ tarefa</span>
+                  : <button className="hm-gcal-event__import" onClick={() => onImport(ev)}>+ tarefa</button>
+                }
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {connected && (
+        <button className="hm-gcal-disconnect" onClick={onDisconnect}>Desconectar calendário</button>
+      )}
+    </div>
+  )
+})
+
+/* ================================================================
    TasksCard
 ================================================================ */
-const TasksCard = memo(({ tasks, setTasks }: { tasks: Task[]; setTasks: (a: Task[] | ((p: Task[]) => Task[])) => void }) => {
+const TasksCard = memo(({
+  tasks, setTasks, gcalConnected, onSyncToggle, onToggle, onRemove,
+}: {
+  tasks: Task[]
+  setTasks: (a: Task[] | ((p: Task[]) => Task[])) => void
+  gcalConnected: boolean
+  onSyncToggle: (task: Task) => void
+  onToggle: (id: string) => void
+  onRemove: (id: string) => void
+}) => {
   const [draft, setDraft] = useState('')
   const open = tasks.filter(t => !t.done).length
 
-  const toggle   = useCallback((id: string) => setTasks(ts => ts.map(t => t.id === id ? { ...t, done: !t.done } : t)), [setTasks])
-  const remove   = useCallback((id: string) => setTasks(ts => ts.filter(t => t.id !== id)), [setTasks])
   const editText = useCallback((id: string, text: string) => setTasks(ts => ts.map(t => t.id === id ? { ...t, text } : t)), [setTasks])
   const add = () => {
     const txt = draft.trim(); if (!txt) return
@@ -260,7 +354,7 @@ const TasksCard = memo(({ tasks, setTasks }: { tasks: Task[]; setTasks: (a: Task
       <div className="hm-tasks">
         {tasks.map(t => (
           <div key={t.id} className="hm-task" data-done={t.done}>
-            <button className="hm-task__check" data-done={t.done} onClick={() => toggle(t.id)}
+            <button className="hm-task__check" data-done={t.done} onClick={() => onToggle(t.id)}
               aria-label={t.done ? 'Desmarcar tarefa' : 'Concluir tarefa'}><CheckIcon /></button>
             <div className="hm-task__body">
               <TaskTextInput value={t.text} done={t.done} onChange={text => editText(t.id, text)} />
@@ -268,7 +362,17 @@ const TasksCard = memo(({ tasks, setTasks }: { tasks: Task[]; setTasks: (a: Task
                 <span className={`hm-task__tag hm-task__tag--${t.tagCls || 'clay'}`}>{t.tag}</span>
               </div>
             </div>
-            <button className="hm-task__del" onClick={() => remove(t.id)} title="remover">×</button>
+            {gcalConnected && (
+              <button
+                className="hm-task__cal-btn"
+                data-synced={!!t.gcalEventId || undefined}
+                onClick={() => onSyncToggle(t)}
+                title={t.gcalEventId ? 'Remover do Google Calendar' : 'Adicionar ao Google Calendar'}
+              >
+                <CalendarIcon />
+              </button>
+            )}
+            <button className="hm-task__del" onClick={() => onRemove(t.id)} title="remover">×</button>
           </div>
         ))}
         <form className="hm-task-add" onSubmit={e => { e.preventDefault(); add() }}>
@@ -497,6 +601,13 @@ export function HomeMode() {
   const [reflect,    _setReflect] = useLocal<ReflectStore>(`hm.reflect.v2.${uid}`, {})
   const [heatFilter, setHeatFilter] = useState('all')
 
+  /* ── Google Calendar state ── */
+  const [gcalConnected,  setGcalConnected]  = useState(isConnected)
+  const [calEvents,      setCalEvents]      = useState<CalendarEvent[]>([])
+  const [calLoading,     setCalLoading]     = useState(false)
+  const [calError,       setCalError]       = useState<string | null>(null)
+  const [gcalConnecting, setGcalConnecting] = useState(false)
+
   /* ── Supabase sync ── */
   const { online, setHomeSyncing, setHomePending } = useSyncStore()
   const pendingRef  = useRef(false)
@@ -561,6 +672,80 @@ export function HomeMode() {
     _setReflect(action); scheduleUpsert()
   }, [_setReflect, scheduleUpsert])
 
+  /* ── Google Calendar handlers ── */
+  const loadCalEvents = useCallback(async () => {
+    if (!isConnected()) return
+    setCalLoading(true); setCalError(null)
+    try { setCalEvents(await fetchTodayEvents()) }
+    catch (e) { setCalError(String(e)) }
+    finally { setCalLoading(false) }
+  }, [])
+
+  useEffect(() => { if (gcalConnected) loadCalEvents() }, [gcalConnected]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleGcalConnect = useCallback(async () => {
+    setGcalConnecting(true)
+    try {
+      await connectGoogleCalendar()
+      setGcalConnected(true)
+      toast.success('Google Calendar conectado!')
+    } catch (e) {
+      toast.error(String(e))
+    } finally {
+      setGcalConnecting(false)
+    }
+  }, [])
+
+  const handleGcalDisconnect = useCallback(() => {
+    clearTokens(); setGcalConnected(false); setCalEvents([])
+    toast.success('Calendário desconectado')
+  }, [])
+
+  const handleImportEvent = useCallback((ev: CalendarEvent) => {
+    setTasks(ts => [...ts, {
+      id: 'gcal_' + ev.id,
+      text: ev.summary,
+      tag: 'agenda',
+      tagCls: 'electric',
+      done: false,
+      gcalEventId: ev.id,
+    }])
+    toast.success('Evento importado como tarefa')
+  }, [setTasks])
+
+  const handleTaskSyncToggle = useCallback(async (task: Task) => {
+    if (task.gcalEventId) {
+      try { await deleteEvent(task.gcalEventId) } catch {}
+      setTasks(ts => ts.map(t => t.id === task.id ? { ...t, gcalEventId: undefined } : t))
+      toast.success('Removido do Google Calendar')
+    } else {
+      try {
+        const ev = await createEvent(task.text)
+        setTasks(ts => ts.map(t => t.id === task.id ? { ...t, gcalEventId: ev.id } : t))
+        toast.success('Adicionado ao Google Calendar')
+      } catch (e) { toast.error(String(e)) }
+    }
+  }, [setTasks])
+
+  const handleTaskToggle = useCallback(async (id: string) => {
+    const task = tasksRef.current.find(t => t.id === id)
+    if (!task) return
+    const newDone = !task.done
+    setTasks(ts => ts.map(t => t.id === id ? { ...t, done: newDone } : t))
+    if (task.gcalEventId && isConnected()) {
+      try { await updateEventSummary(task.gcalEventId, newDone ? `✓ ${task.text}` : task.text) }
+      catch {} // silent fail — local state already updated
+    }
+  }, [setTasks])
+
+  const handleTaskRemove = useCallback(async (id: string) => {
+    const task = tasksRef.current.find(t => t.id === id)
+    setTasks(ts => ts.filter(t => t.id !== id))
+    if (task?.gcalEventId && isConnected()) {
+      try { await deleteEvent(task.gcalEventId) } catch {}
+    }
+  }, [setTasks])
+
   const today    = getToday()
   const dateLabel = `${WEEKDAYS_PT[today.getDay()]} · ${today.getDate()} de ${MONTHS_PT_FULL[today.getMonth()]}`
   const streak  = computeStreak(habits)
@@ -598,7 +783,26 @@ export function HomeMode() {
         <div className="hm-grid">
           <div className="hm-col">
             <HabitsCard habits={habits} setHabits={setHabits}/>
-            <TasksCard  tasks={tasks}   setTasks={setTasks}/>
+            <TasksCard
+              tasks={tasks}
+              setTasks={setTasks}
+              gcalConnected={gcalConnected}
+              onSyncToggle={handleTaskSyncToggle}
+              onToggle={handleTaskToggle}
+              onRemove={handleTaskRemove}
+            />
+            <CalendarCard
+              connected={gcalConnected}
+              events={calEvents}
+              loading={calLoading}
+              error={calError}
+              tasks={tasks}
+              onConnect={handleGcalConnect}
+              onDisconnect={handleGcalDisconnect}
+              onImport={handleImportEvent}
+              onRefresh={loadCalEvents}
+              connecting={gcalConnecting}
+            />
           </div>
           <div className="hm-col">
             <ReflectionCard reflect={reflect} setReflect={setReflect}/>

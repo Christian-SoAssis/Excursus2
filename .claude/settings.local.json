@@ -13,7 +13,11 @@
       "Bash(npm run *)",
       "Bash(grep -A 60 'renderHTML\\\\\\(\\\\{ node, HTMLAttributes')",
       "Bash(node -e \"const k = require\\('./node_modules/katex'\\); console.log\\(typeof k.renderToString\\)\")",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(npm install *)",
+      "Bash(npm list *)",
+      "Bash(cargo check *)",
+      "Bash(findstr /C:\"scripts\" /C:\"dev\" /C:\"tauri\" /C:\"build\")"
     ]
   }
 }

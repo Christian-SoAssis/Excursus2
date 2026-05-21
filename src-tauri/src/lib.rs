@@ -16,6 +16,7 @@ pub fn run() {
             app.manage(AppState { db: Mutex::new(conn) });
             Ok(())
         })
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             commands::notes::save_note,
             commands::notes::get_notes,
@@ -25,6 +26,7 @@ pub fn run() {
             commands::notes::create_note,
             commands::graph::get_graph,
             commands::search::search_notes,
+            commands::oauth::start_oauth_server,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

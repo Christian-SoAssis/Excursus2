@@ -685,3 +685,135 @@
   .hm-habits__add { width: 100%; }
   .hm-reflect__field { min-height: 120px; }
 }
+
+/* -----------------------------------------------------------
+   Google Calendar card
+----------------------------------------------------------- */
+.hm-gcal-connect {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 4px 0 2px;
+}
+.hm-gcal-connect__desc {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.hm-gcal-connect__btn {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 18px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background .15s var(--ease), border-color .15s var(--ease);
+}
+.hm-gcal-connect__btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--accent-terracotta); }
+.hm-gcal-connect__btn:disabled { opacity: 0.6; cursor: wait; }
+
+.hm-gcal-state {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 0;
+}
+.hm-gcal-state__msg {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.hm-gcal-state__retry {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--accent-terracotta);
+  cursor: pointer;
+  padding: 4px 8px;
+  border: 1px solid var(--accent-terracotta);
+  border-radius: 4px;
+  transition: background .12s var(--ease);
+}
+.hm-gcal-state__retry:hover { background: rgb(var(--accent-terracotta-rgb) / 0.1); }
+
+.hm-gcal-events { display: flex; flex-direction: column; gap: 2px; }
+.hm-gcal-event {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-subtle);
+  transition: opacity .15s var(--ease);
+}
+.hm-gcal-event:first-child { border-top: 0; }
+.hm-gcal-event[data-imported] { opacity: 0.55; }
+
+.hm-gcal-event__time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.hm-gcal-event__title {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hm-gcal-event__import {
+  font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--accent-terracotta);
+  white-space: nowrap;
+  padding: 3px 8px;
+  border: 1px solid var(--accent-terracotta);
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity .15s var(--ease), background .12s var(--ease);
+}
+.hm-gcal-event:hover .hm-gcal-event__import { opacity: 1; }
+.hm-gcal-event__import:hover { background: rgb(var(--accent-terracotta-rgb) / 0.1); }
+
+.hm-gcal-event__badge {
+  font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--accent-emerald);
+  white-space: nowrap;
+}
+
+.hm-gcal-disconnect {
+  margin-top: 14px;
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color .12s var(--ease);
+}
+.hm-gcal-disconnect:hover { color: var(--accent-terracotta); }
+
+/* Calendar sync button on tasks */
+.hm-task__cal-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px;
+  opacity: 0;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  align-self: center;
+  transition: opacity .15s var(--ease), color .12s var(--ease);
+}
+.hm-task__cal-btn svg { width: 14px; height: 14px; }
+.hm-task:hover .hm-task__cal-btn { opacity: 1; }
+.hm-task__cal-btn[data-synced] { opacity: 1; color: var(--accent-electric); }
+.hm-task__cal-btn:hover { color: var(--accent-terracotta); }
