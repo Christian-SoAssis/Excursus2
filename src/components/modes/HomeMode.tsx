@@ -271,12 +271,12 @@ const TasksCard = memo(({ tasks, setTasks }: { tasks: Task[]; setTasks: (a: Task
             <button className="hm-task__del" onClick={() => remove(t.id)} title="remover">×</button>
           </div>
         ))}
-        <div className="hm-task-add">
+        <form className="hm-task-add" onSubmit={e => { e.preventDefault(); add() }}>
           <input placeholder="Adicionar tarefa…" value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') add() }}/>
-          <span className="hm-task-add__hint">enter <kbd>↵</kbd></span>
-        </div>
+          <button type="submit" className="hm-task-add__btn" aria-label="Adicionar tarefa">+</button>
+        </form>
       </div>
     </div>
   )
@@ -500,7 +500,7 @@ export function HomeMode() {
   /* ── Supabase sync ── */
   const { online, setHomeSyncing, setHomePending } = useSyncStore()
   const pendingRef  = useRef(false)
-  const timerRef    = useRef<ReturnType<typeof setTimeout>>()
+  const timerRef    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const habitsRef   = useRef(habits)
   const tasksRef    = useRef(tasks)
   const reflectRef  = useRef(reflect)

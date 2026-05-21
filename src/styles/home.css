@@ -393,6 +393,21 @@
   padding: 2px 6px;
   margin-left: 4px;
 }
+.hm-task-add__btn {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  background: var(--accent, #7c6fcd);
+  color: #fff;
+  border: none; border-radius: 50%;
+  font-size: 18px; line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+@media (pointer: coarse) {
+  .hm-task-add__btn { display: flex; }
+  .hm-task-add__hint { display: none; }
+}
 
 /* -----------------------------------------------------------
    Reflexão

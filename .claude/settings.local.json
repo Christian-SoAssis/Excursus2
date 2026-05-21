@@ -9,7 +9,8 @@
       "Bash(node -e \"const t = require\\('./node_modules/@tiptap/extension-table-row/dist/index.js'\\); console.log\\(Object.keys\\(t\\)\\)\")",
       "Bash(node -e \"const t = require\\('./node_modules/@tiptap/extension-table/dist/index.js'\\); console.log\\('default:', t.default, 'Table:', typeof t.Table\\)\")",
       "Bash(node -e \"const t = require\\('./node_modules/@tiptap/extension-table-cell/dist/index.js'\\); console.log\\(Object.keys\\(t\\)\\)\")",
-      "Bash(node -e \"const t = require\\('./node_modules/@tiptap/extension-table-header/dist/index.js'\\); console.log\\(Object.keys\\(t\\)\\)\")"
+      "Bash(node -e \"const t = require\\('./node_modules/@tiptap/extension-table-header/dist/index.js'\\); console.log\\(Object.keys\\(t\\)\\)\")",
+      "Bash(npm run *)"
     ]
   }
 }
