@@ -23,15 +23,19 @@ export interface LocalCalEvent {
 
 interface CalendarEventsStore {
   events: LocalCalEvent[]
-  add:    (e: Omit<LocalCalEvent, 'id'>) => string
-  update: (id: string, patch: Partial<LocalCalEvent>) => void
-  remove: (id: string) => void
+  /** Cores customizadas para eventos GCal — chave: recurringEventId (série) ou eventId (único) */
+  gcalColors: Record<string, EventColor>
+  add:           (e: Omit<LocalCalEvent, 'id'>) => string
+  update:        (id: string, patch: Partial<LocalCalEvent>) => void
+  remove:        (id: string) => void
+  setGcalColor:  (gcalKey: string, color: EventColor) => void
 }
 
 export const useCalendarEvents = create<CalendarEventsStore>()(
   persist(
     (set) => ({
       events: [],
+      gcalColors: {},
       add: (e) => {
         const id = 'ev_' + Date.now()
         set(s => ({ events: [...s.events, { ...e, id }] }))
@@ -41,6 +45,8 @@ export const useCalendarEvents = create<CalendarEventsStore>()(
         set(s => ({ events: s.events.map(e => e.id === id ? { ...e, ...patch } : e) })),
       remove: (id) =>
         set(s => ({ events: s.events.filter(e => e.id !== id) })),
+      setGcalColor: (gcalKey, color) =>
+        set(s => ({ gcalColors: { ...s.gcalColors, [gcalKey]: color } })),
     }),
     { name: 'excursus-cal-events' },
   ),

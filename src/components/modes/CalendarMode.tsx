@@ -273,13 +273,15 @@ const EventModal = memo(({
 
 /* ── Day cell (month view) ───────────────────────────────────── */
 const DayCell = memo(({
-  dateStr, isToday, isCurrentMonth, occurrences, gcalOccs, onClickDay, onClickEvent, onClickGcalEvent,
+  dateStr, isToday, isCurrentMonth, occurrences, gcalOccs,
+  onClickDay, onClickEvent, onClickGcalEvent, gcalColors,
 }: {
   dateStr: string; isToday: boolean; isCurrentMonth: boolean
   occurrences: Occurrence[]; gcalOccs: GcalEvent[]
   onClickDay: (date: string) => void
   onClickEvent: (id: string) => void
   onClickGcalEvent: (ev: GcalEvent) => void
+  gcalColors: Record<string, EventColor>
 }) => {
   const day = Number(dateStr.split('-')[2])
   const allEvts = [...occurrences, ...gcalOccs]
@@ -298,12 +300,17 @@ const DayCell = memo(({
             <span className="cal-event-pill__title">{ev.title}</span>
           </button>
         ))}
-        {gcalOccs.slice(0, Math.max(0, 3 - occurrences.length)).map(ev => (
-          <button key={ev.id} className="cal-event-pill cal-event-pill--gcal"
-            onClick={e => { e.stopPropagation(); onClickGcalEvent(ev) }}>
-            <span className="cal-event-pill__title">{ev.summary}</span>
-          </button>
-        ))}
+        {gcalOccs.slice(0, Math.max(0, 3 - occurrences.length)).map(ev => {
+          const savedColor = gcalColors[ev.recurringEventId ?? ev.id] as EventColor | undefined
+          return (
+            <button key={ev.id}
+              className={savedColor ? 'cal-event-pill' : 'cal-event-pill cal-event-pill--gcal'}
+              data-color={savedColor ?? undefined}
+              onClick={e => { e.stopPropagation(); onClickGcalEvent(ev) }}>
+              <span className="cal-event-pill__title">{ev.summary}</span>
+            </button>
+          )
+        })}
         {overflow > 0 && <span className="cal-cell__overflow">+{overflow} mais</span>}
       </div>
     </div>
@@ -312,7 +319,7 @@ const DayCell = memo(({
 
 /* ── Week view ───────────────────────────────────────────────── */
 const WeekView = memo(({
-  weekStart, occurrences, gcalEvts, onClickDay, onClickEvent, onClickGcalEvent,
+  weekStart, occurrences, gcalEvts, onClickDay, onClickEvent, onClickGcalEvent, gcalColors,
 }: {
   weekStart: Date
   occurrences: Occurrence[]
@@ -320,6 +327,7 @@ const WeekView = memo(({
   onClickDay: (date: string) => void
   onClickEvent: (id: string) => void
   onClickGcalEvent: (ev: GcalEvent) => void
+  gcalColors: Record<string, EventColor>
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const today     = new Date()
@@ -405,12 +413,17 @@ const WeekView = memo(({
                     <span className="cal-event-pill__title">{ev.title}</span>
                   </button>
                 ))}
-                {(gcalAdMap.get(d.dateStr) ?? []).map(ev => (
-                  <button key={ev.id} className="cal-event-pill cal-event-pill--gcal"
-                    onClick={e => { e.stopPropagation(); onClickGcalEvent(ev) }}>
-                    <span className="cal-event-pill__title">{ev.summary}</span>
-                  </button>
-                ))}
+                {(gcalAdMap.get(d.dateStr) ?? []).map(ev => {
+                  const savedColor = gcalColors[ev.recurringEventId ?? ev.id] as EventColor | undefined
+                  return (
+                    <button key={ev.id}
+                      className={savedColor ? 'cal-event-pill' : 'cal-event-pill cal-event-pill--gcal'}
+                      data-color={savedColor ?? undefined}
+                      onClick={e => { e.stopPropagation(); onClickGcalEvent(ev) }}>
+                      <span className="cal-event-pill__title">{ev.summary}</span>
+                    </button>
+                  )
+                })}
               </div>
             ))}
           </div>
@@ -459,14 +472,17 @@ const WeekView = memo(({
                 )
               })}
 
-              {/* GCal timed events — clickable to edit */}
+              {/* GCal timed events — clickable to edit, colored if set */}
               {(gcalTmMap.get(d.dateStr) ?? []).map(ev => {
                 const sd = new Date(ev.start.dateTime!)
                 const ed = ev.end?.dateTime ? new Date(ev.end.dateTime) : new Date(sd.getTime() + 3_600_000)
                 const sh = sd.getHours() + sd.getMinutes() / 60
                 const eh = ed.getHours() + ed.getMinutes() / 60
+                const savedColor = gcalColors[ev.recurringEventId ?? ev.id] as EventColor | undefined
                 return (
-                  <button key={ev.id} className="cal-week-event cal-week-event--gcal"
+                  <button key={ev.id}
+                    className={savedColor ? 'cal-week-event' : 'cal-week-event cal-week-event--gcal'}
+                    data-color={savedColor ?? undefined}
                     style={{ top: `${sh * HOUR_H}px`, height: `${Math.max(MIN_EVT_H, (eh - sh) * HOUR_H)}px` }}
                     onClick={e => { e.stopPropagation(); onClickGcalEvent(ev) }}>
                     <span className="cal-week-event__time">
@@ -488,7 +504,7 @@ const WeekView = memo(({
 export function CalendarMode() {
   const user    = useAuthStore(s => s.user)
   const setMode = useUIStore(s => s.setMode)
-  const { events, add, update, remove } = useCalendarEvents()
+  const { events, add, update, remove, gcalColors, setGcalColor } = useCalendarEvents()
 
   const today  = new Date()
   const [view,      setView]      = useState<'month' | 'week'>('month')
@@ -606,6 +622,7 @@ export function CalendarMode() {
       recurrenceInterval: ev.recurrence?.interval ?? 1,
       recurrenceUntil:    ev.recurrence?.until    ?? '',
       syncGcal: !!ev.gcalEventId && isConnected(),
+      editScope: 'this',
     })
     setModalOpen(true)
   }, [events])
@@ -639,17 +656,21 @@ export function CalendarMode() {
       } catch { /* mostra sem recorrência se falhar */ }
     }
 
+    // Cor salva previamente para esta série/evento (chave = master ou instance)
+    const colorKey = masterEventId ?? ev.id
+    const savedColor = gcalColors[colorKey] as EventColor | undefined
+
     setEditingId(null)
     setEditingGcalId(ev.id)
     setEditingGcalRecurringId(masterEventId)
     setDraft({
       title: ev.summary ?? '', date, startTime, endTime,
-      allDay, color: 'electric',
+      allDay, color: savedColor ?? 'electric',
       recurrenceFreq, recurrenceInterval, recurrenceUntil,
       editScope: 'this', syncGcal: true,
     })
     setModalOpen(true)
-  }, [])
+  }, [gcalColors])
 
   /* ── Save (create or update) ── */
   const handleSave = useCallback(async () => {
@@ -689,15 +710,18 @@ export function CalendarMode() {
     /* ── Caso 2: editando evento que só existe no Google Calendar ── */
     if (editingGcalId) {
       if (isConnected()) {
-        // "Todos os eventos" → atualiza o mestre; "Este evento" → atualiza só a instância
         const targetId = (draft.editScope === 'all' && editingGcalRecurringId)
           ? editingGcalRecurringId : editingGcalId
         try { await updateCalEvent(targetId, gcalOpts) }
         catch { toast.error('Sincronização com Google Calendar falhou') }
       }
-      // Só cria entrada local para "este evento" (override de instância)
+      // Persiste a cor escolhida — chave: master (aplica à série) ou instância
+      const colorKey = editingGcalRecurringId ?? editingGcalId
+      setGcalColor(colorKey, draft.color)
+
+      // Só cria entrada local para "este evento" (override de instância única, SEM recorrência)
       if (draft.editScope === 'this') {
-        add({ ...payload, gcalEventId: editingGcalId })
+        add({ ...payload, recurrence: undefined, gcalEventId: editingGcalId })
       }
       setEditingGcalId(null); setEditingGcalRecurringId(null)
       setModalOpen(false); loadGcal()
@@ -717,7 +741,7 @@ export function CalendarMode() {
     setModalOpen(false)
     if (draft.syncGcal) loadGcal()
     toast.success('Evento criado')
-  }, [draft, editingId, editingGcalId, editingGcalRecurringId, events, add, update, loadGcal])
+  }, [draft, editingId, editingGcalId, editingGcalRecurringId, events, add, update, setGcalColor, loadGcal])
 
   /* ── Delete ── */
   const handleDelete = useCallback(async () => {
@@ -825,6 +849,7 @@ export function CalendarMode() {
           onClickDay={openAdd}
           onClickEvent={openEdit}
           onClickGcalEvent={openEditGcal}
+          gcalColors={gcalColors}
         />
       ) : (
         <div className="cal-grid-wrap">
@@ -843,6 +868,7 @@ export function CalendarMode() {
                 onClickDay={openAdd}
                 onClickEvent={openEdit}
                 onClickGcalEvent={openEditGcal}
+                gcalColors={gcalColors}
               />
             ))}
           </div>
