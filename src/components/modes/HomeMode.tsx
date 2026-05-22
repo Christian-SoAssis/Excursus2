@@ -348,7 +348,7 @@ const TasksCard = memo(({
   return (
     <div className="hm-card">
       <div className="hm-card__head">
-        <h2 className="hm-card__title">Tarefas <em>· da semana</em></h2>
+        <h2 className="hm-card__title">Tarefas <em>· de hoje</em></h2>
         <div className="hm-card__meta"><span><b>{open}</b> em aberto</span></div>
       </div>
       <div className="hm-tasks">

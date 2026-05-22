@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type Mode = 'home' | 'floating' | 'spatial' | 'graph' | 'ai' | 'zen'
+export type Mode = 'home' | 'floating' | 'spatial' | 'graph' | 'ai' | 'zen' | 'calendar'
 export type Theme = 'dark' | 'light'
 export type Accent = 'terracotta' | 'amber' | 'electric' | 'emerald'
 

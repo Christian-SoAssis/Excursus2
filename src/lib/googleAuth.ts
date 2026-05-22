@@ -39,12 +39,14 @@ export async function getValidAccessToken(): Promise<string> {
   if (!tokens) throw new Error('Não conectado ao Google Calendar')
   if (Date.now() < tokens.expires_at) return tokens.access_token
 
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  const clientId     = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: clientId,
+      ...(clientSecret ? { client_secret: clientSecret } : {}),
       refresh_token: tokens.refresh_token,
       grant_type: 'refresh_token',
     }),
@@ -100,12 +102,14 @@ async function exchangeCode(
   codeVerifier: string,
   redirectUri: string,
 ): Promise<void> {
+  const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       code,
       client_id: clientId,
+      ...(clientSecret ? { client_secret: clientSecret } : {}),
       code_verifier: codeVerifier,
       redirect_uri: redirectUri,
       grant_type: 'authorization_code',
