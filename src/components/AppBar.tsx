@@ -25,10 +25,10 @@ const MODES = [
   { id: 'zen'      as const, label: 'Zen'        },
 ]
 
-export function AppBar() {
-  const { mode, theme, setMode, setTheme, sidebarOpen, setSidebarOpen } = useUIStore()
+export function AppBar({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const { mode, setMode, sidebarOpen, setSidebarOpen } = useUIStore()
   const createNote = useNotesStore(s => s.createNote)
-  const { user, signOut } = useAuthStore()
+  const { user } = useAuthStore()
 
   return (
     <header className="appbar">
@@ -58,10 +58,12 @@ export function AppBar() {
       <div className="appbar__right">
         <SyncPill />
         <button className="appbar__tab" onClick={() => createNote()} data-testid="new-note-btn">+ nota</button>
-        <button className="appbar__tab" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-          {theme === 'dark' ? '☽' : '☀'}
-        </button>
-        <div className="appbar__avatar" title={user?.email ?? ''} onClick={signOut} style={{ cursor: 'pointer' }} />
+        <button
+          className="appbar__avatar"
+          title={`${user?.email ?? ''} · Configurações`}
+          onClick={onOpenSettings}
+          aria-label="Abrir configurações"
+        />
       </div>
     </header>
   )

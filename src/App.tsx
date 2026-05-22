@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Toaster } from 'sonner'
 import { handleOAuthPopupCallback } from './lib/googleAuth'
+import { applyFont } from './lib/fonts'
 import { AppBar } from './components/AppBar'
 import { FloatingMode } from './components/modes/FloatingMode'
 import { SpatialMode } from './components/modes/SpatialMode'
@@ -10,6 +11,7 @@ import { HomeMode } from './components/modes/HomeMode'
 import { ZenMode } from './components/modes/ZenMode'
 import { CalendarMode } from './components/modes/CalendarMode'
 import { TweaksPanel } from './components/TweaksPanel'
+import { SettingsModal } from './components/SettingsModal'
 import { LoginPage } from './components/auth/LoginPage'
 import { useUIStore } from './store/ui'
 import { useNotesStore } from './store/notes'
@@ -18,7 +20,8 @@ import { useSyncStore } from './store/sync'
 import { supabaseConfigured } from './lib/supabase'
 
 export function App() {
-  const { mode, theme, accent, fontScale, showHandles } = useUIStore()
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const { mode, theme, accent, fontScale, uiFont, showHandles } = useUIStore()
   const loadNotes = useNotesStore(s => s.loadNotes)
   const { user, loading, initialize } = useAuthStore()
   const { initNetworkWatcher, drainQueue } = useSyncStore()
@@ -31,6 +34,8 @@ export function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  useEffect(() => { applyFont(uiFont) }, [uiFont])
 
   useEffect(() => {
     document.documentElement.style.setProperty('font-size', `${fontScale * 16}px`)
@@ -106,9 +111,10 @@ export function App() {
 
   return (
     <>
-      <AppBar />
+      <AppBar onOpenSettings={() => setSettingsOpen(true)} />
       <main className="stage">{renderMode()}</main>
-      <TweaksPanel />
+      <TweaksPanel onOpen={() => setSettingsOpen(true)} />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <Toaster position="bottom-right" />
     </>
   )
