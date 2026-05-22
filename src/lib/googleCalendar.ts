@@ -11,6 +11,20 @@ export interface CalendarEvent {
   end:   { date?: string; dateTime?: string; timeZone?: string }
   status: 'confirmed' | 'tentative' | 'cancelled'
   htmlLink?: string
+  /** RRULE strings — presente apenas no evento-mestre, não nas instâncias */
+  recurrence?: string[]
+  /** Presente nas instâncias de eventos recorrentes — aponta para o evento-mestre */
+  recurringEventId?: string
+}
+
+/** Busca um evento específico pelo ID (útil para obter o evento-mestre e sua RRULE) */
+export async function fetchGcalEvent(eventId: string): Promise<CalendarEvent> {
+  const token = await getValidAccessToken()
+  const res = await fetch(`${BASE}/events/${eventId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Falha ao buscar evento do calendário')
+  return res.json()
 }
 
 /* ── Fetch ───────────────────────────────────────────────────── */
@@ -66,6 +80,28 @@ export interface CreateEventOptions {
   endTime?: string   // HH:MM
   allDay?: boolean
   recurrence?: Recurrence
+}
+
+export async function updateCalEvent(eventId: string, opts: CreateEventOptions): Promise<CalendarEvent> {
+  const token = await getValidAccessToken()
+  const allDay = opts.allDay ?? !opts.startTime
+  const start = allDay
+    ? { date: opts.date }
+    : { dateTime: `${opts.date}T${opts.startTime}:00` }
+  const endDate = opts.endTime
+    ? { dateTime: `${opts.date}T${opts.endTime}:00` }
+    : allDay
+      ? { date: opts.date }
+      : { dateTime: `${opts.date}T${opts.startTime}:00` }
+  const body: Record<string, unknown> = { summary: opts.title, start, end: endDate }
+  if (opts.recurrence) body.recurrence = [toRRule(opts.recurrence)]
+  const res = await fetch(`${BASE}/events/${eventId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error('Falha ao atualizar evento no calendário')
+  return res.json()
 }
 
 export async function createCalEvent(opts: CreateEventOptions): Promise<CalendarEvent> {
