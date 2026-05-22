@@ -8,6 +8,7 @@ import { GraphMode } from './components/modes/GraphMode'
 import { AiMode } from './components/modes/AiMode'
 import { HomeMode } from './components/modes/HomeMode'
 import { ZenMode } from './components/modes/ZenMode'
+import { CalendarMode } from './components/modes/CalendarMode'
 import { TweaksPanel } from './components/TweaksPanel'
 import { LoginPage } from './components/auth/LoginPage'
 import { useUIStore } from './store/ui'
@@ -63,11 +64,12 @@ export function App() {
   }, [accent, theme])
 
   const renderMode = () => {
-    if (mode === 'home') return <HomeMode />
-    if (mode === 'spatial') return <SpatialMode />
-    if (mode === 'graph') return <GraphMode />
-    if (mode === 'ai') return <AiMode />
-    if (mode === 'zen') return <ZenMode />
+    if (mode === 'home')     return <HomeMode />
+    if (mode === 'calendar') return <CalendarMode />
+    if (mode === 'spatial')  return <SpatialMode />
+    if (mode === 'graph')    return <GraphMode />
+    if (mode === 'ai')       return <AiMode />
+    if (mode === 'zen')      return <ZenMode />
     return <FloatingMode />
   }
 

@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/auth'
 import { useSyncStore } from '../../store/sync'
 import { loadHomeData, saveHomeData } from '../../lib/homeData'
 import type { Habit, Task, ReflectStore } from '../../lib/homeData'
-import { connectGoogleCalendar, clearTokens, isConnected } from '../../lib/googleAuth'
+import { connectGoogleCalendar, disconnectGoogleCalendar, isConnected } from '../../lib/googleAuth'
 import { fetchTodayEvents, createEvent, updateEventSummary, deleteEvent } from '../../lib/googleCalendar'
 import type { CalendarEvent } from '../../lib/googleCalendar'
 
@@ -348,7 +348,7 @@ const TasksCard = memo(({
   return (
     <div className="hm-card">
       <div className="hm-card__head">
-        <h2 className="hm-card__title">Tarefas <em>· da semana</em></h2>
+        <h2 className="hm-card__title">Tarefas <em>· de hoje</em></h2>
         <div className="hm-card__meta"><span><b>{open}</b> em aberto</span></div>
       </div>
       <div className="hm-tasks">
@@ -696,8 +696,10 @@ export function HomeMode() {
     }
   }, [])
 
-  const handleGcalDisconnect = useCallback(() => {
-    clearTokens(); setGcalConnected(false); setCalEvents([])
+  const handleGcalDisconnect = useCallback(async () => {
+    await disconnectGoogleCalendar()
+    setGcalConnected(false)
+    setCalEvents([])
     toast.success('Calendário desconectado')
   }, [])
 

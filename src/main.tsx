@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { App } from './App'
 import './styles/globals.css'
 import './styles/home.css'
+import './styles/calendar.css'
 import './styles/auth.css'
 import 'katex/dist/katex.min.css'
 

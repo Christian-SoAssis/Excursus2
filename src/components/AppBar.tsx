@@ -16,12 +16,13 @@ function SyncPill() {
 }
 
 const MODES = [
-  { id: 'home'     as const, label: 'Hoje' },
-  { id: 'floating' as const, label: 'Floating' },
-  { id: 'spatial'  as const, label: 'Spatial' },
-  { id: 'graph'    as const, label: 'Graph' },
-  { id: 'ai'       as const, label: 'AI' },
-  { id: 'zen'      as const, label: 'Zen' },
+  { id: 'home'     as const, label: 'Hoje'       },
+  { id: 'calendar' as const, label: 'Calendário' },
+  { id: 'floating' as const, label: 'Floating'   },
+  { id: 'spatial'  as const, label: 'Spatial'    },
+  { id: 'graph'    as const, label: 'Graph'      },
+  { id: 'ai'       as const, label: 'AI'         },
+  { id: 'zen'      as const, label: 'Zen'        },
 ]
 
 export function AppBar() {
