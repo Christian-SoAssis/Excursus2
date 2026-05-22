@@ -21,7 +21,9 @@ pub fn start_oauth_server(app: AppHandle) -> Result<u16, String> {
                 let _ = stream.write_all(response.as_bytes());
 
                 if let Some(code) = parse_query_param(&request, "code") {
-                    let _ = app.emit("google-oauth-code", code);
+                    let state = parse_query_param(&request, "state").unwrap_or_default();
+                    let payload = serde_json::json!({"code": code, "state": state}).to_string();
+                    let _ = app.emit("google-oauth-code", payload);
                 } else if let Some(error) = parse_query_param(&request, "error") {
                     let _ = app.emit("google-oauth-error", error);
                 }

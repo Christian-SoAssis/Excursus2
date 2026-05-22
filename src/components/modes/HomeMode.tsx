@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/auth'
 import { useSyncStore } from '../../store/sync'
 import { loadHomeData, saveHomeData } from '../../lib/homeData'
 import type { Habit, Task, ReflectStore } from '../../lib/homeData'
-import { connectGoogleCalendar, clearTokens, isConnected } from '../../lib/googleAuth'
+import { connectGoogleCalendar, disconnectGoogleCalendar, isConnected } from '../../lib/googleAuth'
 import { fetchTodayEvents, createEvent, updateEventSummary, deleteEvent } from '../../lib/googleCalendar'
 import type { CalendarEvent } from '../../lib/googleCalendar'
 
@@ -696,8 +696,10 @@ export function HomeMode() {
     }
   }, [])
 
-  const handleGcalDisconnect = useCallback(() => {
-    clearTokens(); setGcalConnected(false); setCalEvents([])
+  const handleGcalDisconnect = useCallback(async () => {
+    await disconnectGoogleCalendar()
+    setGcalConnected(false)
+    setCalEvents([])
     toast.success('Calendário desconectado')
   }, [])
 
