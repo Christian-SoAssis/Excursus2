@@ -28,6 +28,23 @@ function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 }
 
+/**
+ * Returns the correct Google OAuth Client ID for the current environment:
+ *  - Tauri desktop → VITE_GOOGLE_CLIENT_ID (Desktop app type, localhost only)
+ *  - Browser       → VITE_GOOGLE_CLIENT_ID_WEB if set, else VITE_GOOGLE_CLIENT_ID
+ *
+ * This matters because Desktop app clients only allow localhost redirects,
+ * so any non-localhost origin (ngrok, custom domain, etc.) requires a
+ * separate "Web application" client with those origins registered.
+ */
+function getClientId(): string {
+  if (!isTauri()) {
+    const webId = import.meta.env.VITE_GOOGLE_CLIENT_ID_WEB
+    if (webId) return webId
+  }
+  return import.meta.env.VITE_GOOGLE_CLIENT_ID
+}
+
 /* ── connection state (Fix 3: only a boolean flag in localStorage) ── */
 export function isConnected(): boolean {
   return localStorage.getItem(CONNECTED_KEY) === 'true'
@@ -145,7 +162,7 @@ async function exchangeCode(
 
 /* ── Web flow: popup + postMessage ────────────────────────────────── */
 async function connectWeb(): Promise<void> {
-  const clientId     = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  const clientId     = getClientId()
   const codeVerifier = generateCodeVerifier()
   const codeChallenge = await generateCodeChallenge(codeVerifier)
   const redirectUri  = window.location.origin
@@ -221,7 +238,7 @@ async function connectTauri(): Promise<void> {
   const { listen }  = await import('@tauri-apps/api/event')
   const { openUrl } = await import('@tauri-apps/plugin-opener')
 
-  const clientId      = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  const clientId      = getClientId()
   const codeVerifier  = generateCodeVerifier()
   const codeChallenge = await generateCodeChallenge(codeVerifier)
   const state         = crypto.randomUUID()     // Fix 2
@@ -278,7 +295,7 @@ async function connectTauri(): Promise<void> {
 /* ── Public API ────────────────────────────────────────────────────── */
 
 export async function connectGoogleCalendar(): Promise<void> {
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  const clientId = getClientId()
   if (!clientId) throw new Error('VITE_GOOGLE_CLIENT_ID não configurado no arquivo .env.local')
   return isTauri() ? connectTauri() : connectWeb()
 }

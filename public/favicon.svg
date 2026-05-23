@@ -1,0 +1,18 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Excursus">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff9d77"/>
+      <stop offset="1" stop-color="#f0bd8b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- fundo escuro sem rx — browsers/OS cuidam do arredondamento do favicon -->
+  <rect width="64" height="64" fill="#131411"/>
+
+  <!-- o fio horizontal -->
+  <line x1="4" y1="39" x2="60" y2="39" stroke="#cec5c1" stroke-width="1.4" stroke-linecap="round"/>
+
+  <!-- o pulso: terracota → âmbar em destaque -->
+  <path d="M9 39 C23 39 21.5 17 32 17 C42.5 17 41 39 55 39"
+        fill="none" stroke="url(#g1)" stroke-width="2.8" stroke-linecap="round"/>
+</svg>

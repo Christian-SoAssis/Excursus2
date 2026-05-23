@@ -12,7 +12,7 @@ import { ZenMode } from './components/modes/ZenMode'
 import { CalendarMode } from './components/modes/CalendarMode'
 import { TweaksPanel } from './components/TweaksPanel'
 import { SettingsModal } from './components/SettingsModal'
-import { LoginPage } from './components/auth/LoginPage'
+import { LandingPage } from './components/LandingPage'
 import { useUIStore } from './store/ui'
 import { useNotesStore } from './store/notes'
 import { useAuthStore } from './store/auth'
@@ -103,7 +103,7 @@ export function App() {
   if (!user) {
     return (
       <>
-        <LoginPage />
+        <LandingPage />
         <Toaster position="bottom-right" />
       </>
     )

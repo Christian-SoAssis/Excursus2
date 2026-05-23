@@ -19,11 +19,18 @@
 
 .auth-logo {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
   margin-bottom: 6px;
 }
 
+.auth-wordmark {
+  display: block;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+}
+
+/* mantidos para fallback */
 .auth-logo__mark {
   width: 32px;
   height: 32px;

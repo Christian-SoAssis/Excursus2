@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuthStore } from '../../store/auth'
 import { useNotesStore } from '../../store/notes'
+import { ExcursusWordmark } from '../ExcursusLogo'
 
 export function LoginPage() {
   const { signIn, signUp } = useAuthStore()
@@ -41,8 +42,7 @@ export function LoginPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <span className="auth-logo__mark">E</span>
-          <span className="auth-logo__name">Excursus</span>
+          <ExcursusWordmark width={280} className="auth-wordmark" />
         </div>
         <p className="auth-tagline">notas, hábitos e pensamentos — tudo junto</p>
 

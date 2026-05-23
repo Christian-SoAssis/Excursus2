@@ -2,6 +2,7 @@ import { useUIStore } from '../store/ui'
 import { useNotesStore } from '../store/notes'
 import { useAuthStore } from '../store/auth'
 import { useSyncStore } from '../store/sync'
+import { ExcursusLogo } from './ExcursusLogo'
 
 function SyncPill() {
   const { online, syncing, pendingCount, homeSyncing, homePending } = useSyncStore()
@@ -33,7 +34,7 @@ export function AppBar({ onOpenSettings }: { onOpenSettings: () => void }) {
   return (
     <header className="appbar">
       <div className="appbar__brand">
-        <div className="appbar__mark">E</div>
+        <ExcursusLogo size={28} bg className="appbar__logo" />
         <div className="appbar__title">Excursus <em>· 2</em></div>
       </div>
       {mode === 'floating' && (
