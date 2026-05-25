@@ -55,7 +55,20 @@ async function runQuery(
     })
 
     if (items.length > 0) {
-      set({ items, forNoteId: noteId, visible: true, loading: false, noResults: false })
+      const prev = get()
+      // Open the panel automatically only when:
+      //   • this is a forced/manual search, OR
+      //   • we switched to a new note, OR
+      //   • no suggestions were shown before (first appearance), OR
+      //   • the panel was already open (keep it open with refreshed items)
+      // Otherwise preserve the user's current visible state — so closing the
+      // pill keeps it closed even as the auto-save keeps refreshing suggestions.
+      const openPanel =
+        forced ||
+        prev.forNoteId !== noteId ||
+        prev.items.length === 0 ||
+        prev.visible
+      set({ items, forNoteId: noteId, visible: openPanel, loading: false, noResults: false })
     } else {
       set({ items: [], forNoteId: noteId, loading: false,
             visible: forced,

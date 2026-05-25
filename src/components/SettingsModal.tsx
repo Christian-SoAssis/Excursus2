@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useUIStore, type Accent, type UILanguage } from '../store/ui'
 import { useAiStore } from '../store/ai'
@@ -6,6 +6,8 @@ import { useAuthStore } from '../store/auth'
 import { FONTS, type UIFont } from '../lib/fonts'
 import { useTutorialStore } from '../store/tutorial'
 import { TUTORIAL_STEPS, REWATCHABLE_STEPS } from './tutorial/TutorialData'
+import { AI_MODELS, FREE_MODELS, PAID_MODELS, saveAiKeys, deleteAiKeys } from '../lib/ai-providers'
+import type { AIModelId } from '../lib/ai-providers'
 
 /* ── Accent colours ─────────────────────────────────────────── */
 const ACCENTS: { value: Accent; label: string; cssVar: string }[] = [
@@ -224,13 +226,160 @@ function TutorialSection({ onOpenTutorial }: { onOpenTutorial: (step: number) =>
   )
 }
 
+/* ── AI key management section ───────────────────────────────── */
+function AiKeySection() {
+  const {
+    selectedModel,
+    openaiModel,   setOpenaiModel,
+    customBaseUrl, setCustomBaseUrl,
+    customModel,   setCustomModel,
+    keyStatus,     setKeyStatus,
+  } = useAiStore()
+
+  const meta        = AI_MODELS.find(m => m.id === selectedModel)
+  const provider    = meta?.provider ?? 'google'
+  const configured  = keyStatus[provider as keyof typeof keyStatus]
+
+  const [key,      setKey]      = useState('')
+  const [saving,   setSaving]   = useState(false)
+  const [removing, setRemoving] = useState(false)
+
+  // Reset key input whenever the provider changes
+  useEffect(() => { setKey('') }, [provider])
+
+  const canSave =
+    (provider === 'google' && !!key.trim()) ||
+    (provider === 'openai' && !!key.trim()) ||
+    (provider === 'custom' && !!(key.trim() && customBaseUrl.trim() && customModel.trim()))
+
+  const handleSave = async () => {
+    if (!canSave || saving) return
+    setSaving(true)
+    try {
+      await saveAiKeys({
+        ...(provider === 'google' && { geminiKey: key.trim() }),
+        ...(provider === 'openai' && { openaiKey: key.trim() }),
+        ...(provider === 'custom' && { customKey: key.trim() }),
+      })
+      setKeyStatus({ [provider]: true } as Record<string, boolean>)
+      setKey('')
+      toast.success('Chave salva com sucesso!')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao salvar chave')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRemove = async () => {
+    if (removing) return
+    setRemoving(true)
+    try {
+      const deleteProvider = (provider === 'google' ? 'gemini' : provider) as 'gemini' | 'openai' | 'custom'
+      await deleteAiKeys([deleteProvider])
+      setKeyStatus({ [provider]: false } as Record<string, boolean>)
+      toast.success('Chave removida.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao remover chave')
+    } finally {
+      setRemoving(false)
+    }
+  }
+
+  return (
+    <div className="cfg-ai-keys">
+      {/* Status header */}
+      <div className="cfg-ai-keys-header">
+        <span className="cfg-ai-keys-title">
+          {provider === 'google' ? 'Google AI Studio' : provider === 'openai' ? 'OpenAI' : 'Custom'} — chave da API
+        </span>
+        {configured
+          ? <span className="cfg-badge cfg-badge--configured">✓ Configurada</span>
+          : <span className="cfg-badge cfg-badge--not-configured">Não configurada</span>
+        }
+      </div>
+
+      {/* Non-key settings for openai/custom */}
+      {provider === 'openai' && (
+        <Row stack>
+          <span className="cfg-row-label">Modelo</span>
+          <input type="text" className="cfg-field" value={openaiModel}
+            onChange={e => setOpenaiModel(e.target.value)}
+            placeholder="gpt-4o-mini" autoComplete="off" />
+          <span className="cfg-row-hint">ex: gpt-4o, gpt-4o-mini, gpt-4-turbo</span>
+        </Row>
+      )}
+      {provider === 'custom' && (
+        <>
+          <Row stack>
+            <span className="cfg-row-label">Base URL</span>
+            <input type="text" className="cfg-field" value={customBaseUrl}
+              onChange={e => setCustomBaseUrl(e.target.value)}
+              placeholder="https://api.groq.com/openai/v1" autoComplete="off" />
+          </Row>
+          <Row stack>
+            <span className="cfg-row-label">Modelo</span>
+            <input type="text" className="cfg-field" value={customModel}
+              onChange={e => setCustomModel(e.target.value)}
+              placeholder="llama-3.3-70b-versatile" autoComplete="off" />
+          </Row>
+        </>
+      )}
+
+      {/* Key input (always empty — never pre-filled from server) */}
+      <Row stack>
+        <span className="cfg-row-label">
+          {configured ? 'Nova chave (deixe vazio para manter atual)' : 'Chave da API'}
+        </span>
+        <input
+          type="password" className="cfg-field" value={key}
+          onChange={e => setKey(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && canSave) handleSave() }}
+          placeholder={provider === 'google' ? 'AIza…' : provider === 'openai' ? 'sk-…' : 'API key…'}
+          autoComplete="new-password"
+        />
+      </Row>
+
+      {/* Action buttons */}
+      <div className="cfg-ai-keys-actions">
+        <button className="cfg-ai-keys-save" onClick={handleSave} disabled={!canSave || saving}>
+          {saving ? '…' : configured ? 'Atualizar chave' : 'Salvar chave'}
+        </button>
+        {configured && (
+          <button className="cfg-ai-keys-remove" onClick={handleRemove} disabled={removing}>
+            {removing ? '…' : 'Remover'}
+          </button>
+        )}
+      </div>
+
+      {/* Info / links */}
+      {provider === 'google' && (
+        <>
+          <span className="cfg-row-hint">Compartilhada por todos os modelos Gemini. Chaves do AI Studio são gratuitas.</span>
+          <a className="cfg-ai-keys-link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
+            Obter chave gratuita em aistudio.google.com →
+          </a>
+        </>
+      )}
+      {provider === 'openai' && (
+        <a className="cfg-ai-keys-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">
+          platform.openai.com/api-keys →
+        </a>
+      )}
+      {provider === 'custom' && (
+        <span className="cfg-row-hint">Compatível com Groq, Together AI, Mistral, Ollama e outros.</span>
+      )}
+    </div>
+  )
+}
+
 /* ── Main modal ──────────────────────────────────────────────── */
 export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const {
     theme, accent, fontScale, uiFont, language, showHandles,
     setTheme, setAccent, setFontScale, setUIFont, setLanguage, setShowHandles,
   } = useUIStore()
-  const { apiKey, setApiKey } = useAiStore()
+  const { selectedModel, setSelectedModel } = useAiStore()
   const { signOut } = useAuthStore()
   const { openTutorial } = useTutorialStore()
 
@@ -425,20 +574,50 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
           {/* ══ IA ═════════════════════════════════════════════ */}
           <section className="cfg-section">
             <SectionLabel>Inteligência Artificial</SectionLabel>
-            <Row stack>
-              <span className="cfg-row-label">Gemini API Key</span>
-              <input
-                type="password"
-                className="cfg-field"
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                placeholder="AIza…"
-                autoComplete="off"
-              />
-              <span className="cfg-row-hint">
-                Necessária para o assistente no modo AI.
-              </span>
-            </Row>
+
+            {/* ── Model picker ── */}
+            <div className="cfg-ai-models">
+              {/* Free models */}
+              <div className="cfg-ai-group-label">Grátis — Google AI Studio</div>
+              {FREE_MODELS.map(m => (
+                <button
+                  key={m.id}
+                  className={`cfg-ai-model-item ${selectedModel === m.id ? 'is-active' : ''}`}
+                  onClick={() => setSelectedModel(m.id as AIModelId)}
+                >
+                  <div className="cfg-ai-model-item__body">
+                    <span className="cfg-ai-model-item__name">{m.label}</span>
+                    <span className="cfg-ai-model-item__desc">{m.desc}</span>
+                  </div>
+                  <div className="cfg-ai-model-item__right">
+                    <span className="cfg-badge cfg-badge--free">{m.badge}</span>
+                    <span className={`cfg-radio ${selectedModel === m.id ? 'is-active' : ''}`} />
+                  </div>
+                </button>
+              ))}
+
+              {/* Paid / custom */}
+              <div className="cfg-ai-group-label" style={{ marginTop: 8 }}>Pago — chave própria</div>
+              {PAID_MODELS.map(m => (
+                <button
+                  key={m.id}
+                  className={`cfg-ai-model-item ${selectedModel === m.id ? 'is-active' : ''}`}
+                  onClick={() => setSelectedModel(m.id as AIModelId)}
+                >
+                  <div className="cfg-ai-model-item__body">
+                    <span className="cfg-ai-model-item__name">{m.label}</span>
+                    <span className="cfg-ai-model-item__desc">{m.desc}</span>
+                  </div>
+                  <div className="cfg-ai-model-item__right">
+                    <span className="cfg-badge cfg-badge--paid">{m.badge}</span>
+                    <span className={`cfg-radio ${selectedModel === m.id ? 'is-active' : ''}`} />
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* ── Key management ── */}
+            <AiKeySection />
           </section>
 
         </div>

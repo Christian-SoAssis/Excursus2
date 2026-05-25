@@ -50,13 +50,6 @@ function getSyncStore() {
   return import('./sync').then(m => m.useSyncStore.getState())
 }
 
-function fetchSuggestions(noteId: string, content: JSONContent) {
-  // lazy import to avoid circular dep
-  import('./suggestions').then(m => {
-    m.useSuggestionsStore.getState().fetch(noteId, content)
-  })
-}
-
 function refreshPendingCount() {
   getSyncStore().then(s => s.setPendingCount(loadQueue().length))
 }
@@ -97,8 +90,6 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
 
     try {
       await saveNote({ id, title, folder, content: raw })
-      // Trigger similarity suggestions after a successful save
-      fetchSuggestions(id, content)
     } catch {
       const note = get().notes.find(n => n.id === id)
       enqueue({

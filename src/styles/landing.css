@@ -864,6 +864,17 @@
   max-width: 500px;
 }
 
+.land-footer__link {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.land-footer__link:hover {
+  color: var(--text-secondary);
+  text-decoration: underline;
+}
+
 /* ── Auth modal ── */
 .land-auth-overlay {
   position: fixed;

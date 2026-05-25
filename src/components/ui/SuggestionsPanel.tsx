@@ -81,7 +81,7 @@ export function SuggestionsPanel() {
       {!visible && items.length > 0 && (
         <button className="sg-pill" onClick={show}>
           <span className="sg-pill__dot" />
-          {items.length} conexão{items.length !== 1 ? 'ões' : ''} sugerida{items.length !== 1 ? 's' : ''}
+          {items.length} {items.length === 1 ? 'conexão sugerida' : 'conexões sugeridas'}
           <span className="sg-pill__arrow">▲</span>
         </button>
       )}
