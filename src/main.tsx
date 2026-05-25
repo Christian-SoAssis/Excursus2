@@ -6,6 +6,8 @@ import './styles/home.css'
 import './styles/calendar.css'
 import './styles/auth.css'
 import './styles/landing.css'
+import './styles/tutorial.css'
+import './styles/suggestions.css'
 import 'katex/dist/katex.min.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

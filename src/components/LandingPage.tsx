@@ -452,6 +452,10 @@ export function LandingPage() {
               <p className="land-footer__copy">
                 Construído com cuidado. Feito para durar.
               </p>
+              <p className="land-footer__copy">
+                © {new Date().getFullYear()} Excursus · Todos os direitos reservados.
+                Excursus é uma marca de propriedade da <strong>ChriSingularis</strong>.
+              </p>
               <p className="land-footer__copy land-footer__small">
                 * Excursus é gratuito durante o período de beta. Funcionalidades premium podem ser introduzidas no futuro.
               </p>

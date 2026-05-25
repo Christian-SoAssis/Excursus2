@@ -13,7 +13,10 @@ import { CalendarMode } from './components/modes/CalendarMode'
 import { TweaksPanel } from './components/TweaksPanel'
 import { SettingsModal } from './components/SettingsModal'
 import { LandingPage } from './components/LandingPage'
+import { TutorialOverlay } from './components/tutorial/TutorialOverlay'
+import { SuggestionsPanel } from './components/ui/SuggestionsPanel'
 import { useUIStore } from './store/ui'
+import { useTutorialStore } from './store/tutorial'
 import { useNotesStore } from './store/notes'
 import { useAuthStore } from './store/auth'
 import { useSyncStore } from './store/sync'
@@ -25,6 +28,7 @@ export function App() {
   const loadNotes = useNotesStore(s => s.loadNotes)
   const { user, loading, initialize } = useAuthStore()
   const { initNetworkWatcher, drainQueue } = useSyncStore()
+  const { hasSeenOnboarding, openTutorial } = useTutorialStore()
 
   // Handle Google OAuth popup callback — must run before any render logic
   useEffect(() => { handleOAuthPopupCallback() }, [])
@@ -50,6 +54,11 @@ export function App() {
     loadNotes()
     const cleanup = initNetworkWatcher()
     drainQueue()
+    // Show tutorial on first login
+    if (!hasSeenOnboarding) {
+      const t = setTimeout(() => openTutorial(0), 900)
+      return () => { clearTimeout(t); cleanup?.() }
+    }
     return cleanup
   }, [user])
 
@@ -115,6 +124,8 @@ export function App() {
       <main className="stage">{renderMode()}</main>
       <TweaksPanel onOpen={() => setSettingsOpen(true)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <TutorialOverlay />
+      {mode !== 'spatial' && <SuggestionsPanel />}
       <Toaster position="bottom-right" />
     </>
   )

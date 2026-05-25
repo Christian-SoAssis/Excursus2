@@ -1,5 +1,6 @@
 import { BubbleMenu } from '@tiptap/react/menus'
 import type { Editor } from '@tiptap/core'
+import { useSuggestionsStore } from '../../store/suggestions'
 
 const TEXT_COLORS = [
   { value: null,       dot: null,      title: 'Padrão' },
@@ -19,12 +20,27 @@ const HIGHLIGHT_COLORS = [
   { value: 'rgba(255,255,255,0.12)',    dot: '#ccc',    title: 'Branco' },
 ]
 
-interface Props { editor: Editor | null }
+interface Props {
+  editor: Editor | null
+  noteId: string
+}
 
-export function FormatToolbar({ editor }: Props) {
+export function FormatToolbar({ editor, noteId }: Props) {
   if (!editor) return null
 
+  const { fetchFromText, loading } = useSuggestionsStore()
   const md = (e: React.MouseEvent) => e.preventDefault()
+
+  const handleSuggest = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const selectedText = editor.state.doc.textBetween(
+      editor.state.selection.from,
+      editor.state.selection.to,
+      ' ',
+    ).trim()
+    if (selectedText.length < 5) return
+    fetchFromText(noteId, selectedText)
+  }
 
   return (
     <BubbleMenu editor={editor}>
@@ -80,6 +96,19 @@ export function FormatToolbar({ editor }: Props) {
             />
           ))}
         </div>
+
+        <div className="fmt-sep" />
+
+        {/* ── Suggest connections ── */}
+        <button
+          className="fmt-btn fmt-btn--suggest"
+          title="Buscar notas similares ao texto selecionado"
+          onMouseDown={md}
+          onClick={handleSuggest}
+          disabled={loading}
+        >
+          {loading ? '…' : '◎ Sugerir'}
+        </button>
       </div>
     </BubbleMenu>
   )

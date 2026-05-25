@@ -394,6 +394,99 @@ input, textarea { font: inherit; color: inherit; }
 }
 .callout__icon { color: var(--accent-amber); font-size: 20px; flex-shrink: 0; }
 
+/* ── Toggle / Collapsible block ───────────────────────────────────── */
+.tgl {
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 4px 0;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm, none);
+}
+
+.tgl__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: text;
+}
+
+/* ── Arrow toggle button ── */
+.tgl__arrow {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.tgl__arrow:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.tgl__arrow--open {
+  transform: rotate(90deg);
+}
+
+[data-theme='light'] .tgl__arrow:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* ── Editable title ── */
+.tgl__title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  outline: none;
+  min-height: 1.4em;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tgl__title:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+/* ── Body (collapsible) ── */
+.tgl__body {
+  border-top: 1px solid var(--border-subtle);
+  animation: tgl-open 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tgl__body--closed {
+  display: none;
+}
+
+@keyframes tgl-open {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Inner content area ── */
+.tgl__content {
+  padding: 6px 12px 10px 40px; /* left indent aligns with the title */
+}
+
+/* Nested toggles: tighten spacing */
+.tgl__content .tgl {
+  margin: 2px 0;
+}
+
 /* Math */
 .math-block {
   display: flex; justify-content: center; padding: 18px 0;
@@ -581,6 +674,41 @@ input, textarea { font: inherit; color: inherit; }
 .bl-picker__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-terracotta); flex-shrink: 0; }
 .bl-picker__title { font-family: var(--font-serif); font-size: 14px; }
 .bl-picker__path { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); }
+
+/* ── Suggestions section inside backlink picker ── */
+.bl-picker__section {
+  padding: 4px 10px 3px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-electric);
+  opacity: 0.8;
+}
+.bl-picker__sep {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 10px;
+}
+.bl-picker__dot--electric {
+  background: var(--accent-electric);
+}
+.bl-picker__item--suggested {
+  color: var(--text-secondary);
+}
+.bl-picker__item--suggested[data-selected="true"],
+.bl-picker__item--suggested:hover {
+  background: rgba(var(--accent-electric-rgb) / 0.1);
+  color: var(--text-primary);
+}
+.bl-picker__score {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent-electric);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
 
 /* =================================================================
    Mode 1 — SPATIAL
@@ -1039,6 +1167,18 @@ input, textarea { font: inherit; color: inherit; }
 .fmt-btn--i { font-style: italic; }
 .fmt-btn--u { text-decoration: underline; }
 .fmt-btn--s s { text-decoration: line-through; color: inherit; }
+.fmt-btn--suggest {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--accent-electric);
+  background: rgba(var(--accent-electric-rgb) / 0.1);
+  border-radius: 6px;
+  padding: 2px 8px;
+  transition: background 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+.fmt-btn--suggest:hover:not(:disabled) { background: rgba(var(--accent-electric-rgb) / 0.2); }
+.fmt-btn--suggest:disabled { opacity: 0.5; cursor: not-allowed; }
 .fmt-sep { width: 1px; height: 18px; background: var(--border-subtle); margin: 0 3px; flex-shrink: 0; }
 .fmt-group { display: flex; align-items: center; gap: 3px; }
 .fmt-group__label {

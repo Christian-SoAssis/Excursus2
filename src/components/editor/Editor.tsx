@@ -16,8 +16,11 @@ import { CalloutBlock } from './extensions/CalloutBlock'
 import { FocusMode } from './extensions/FocusMode'
 import { PdfBlock } from './extensions/PdfBlock'
 import { MarkdownShortcuts } from './extensions/MarkdownShortcuts'
+import { ToggleBlock } from './extensions/ToggleBlock'
 import { useNotesStore } from '../../store/notes'
 import { useAuthStore } from '../../store/auth'
+import { useSuggestionsStore } from '../../store/suggestions'
+import { registerEditor } from '../../lib/editorRegistry'
 import { getNoteContent } from '../../lib/db'
 import { loadNoteContent } from '../../lib/localCache'
 import { uploadFile } from '../../lib/storage'
@@ -40,6 +43,7 @@ export function Editor({ noteId }: EditorProps) {
   const { notes, saveNoteContent, cacheContent, contentCache } = useNotesStore()
   const note = notes.find(n => n.id === noteId)
   const user = useAuthStore(s => s.user)
+  const suggestionItems = useSuggestionsStore(s => s.items)
   const loadedRef = useRef<string | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const pdfInputRef = useRef<HTMLInputElement>(null)
@@ -79,6 +83,7 @@ export function Editor({ noteId }: EditorProps) {
       PdfBlock,
       FocusMode,
       MarkdownShortcuts,
+      ToggleBlock,
     ],
     onUpdate: ({ editor }) => {
       const json = editor.getJSON()
@@ -87,6 +92,12 @@ export function Editor({ noteId }: EditorProps) {
       checkPopovers(editor)
     },
   })
+
+  // Keep the registry in sync with this editor instance
+  useEffect(() => {
+    registerEditor(editor)
+    return () => { registerEditor(null) }
+  }, [editor])
 
   function checkPopovers(ed: ReturnType<typeof useEditor>) {
     if (!ed) return
@@ -145,7 +156,7 @@ export function Editor({ noteId }: EditorProps) {
 
   return (
     <div className="editor-wrap">
-      <FormatToolbar editor={editor} />
+      <FormatToolbar editor={editor} noteId={noteId} />
       <TableToolbar editor={editor} />
       <EditorContent editor={editor} className="doc" />
 
@@ -176,6 +187,7 @@ export function Editor({ noteId }: EditorProps) {
         <BacklinkPicker
           pos={backlinkPos}
           query={backlinkQuery}
+          suggestions={suggestionItems.slice(0, 3)}
           onPick={(note) => {
             const { from } = editor.state.selection
             const deleteFrom = from - backlinkQuery.length - 2
@@ -183,6 +195,9 @@ export function Editor({ noteId }: EditorProps) {
               .deleteRange({ from: deleteFrom, to: from })
               .insertContent({ type: 'backlink', attrs: { noteId: note.id, title: note.title } })
               .run()
+            // Suppress this note from suggestions until 50 more words are written
+            const wc = editor.state.doc.textContent.trim().split(/\s+/).filter(Boolean).length
+            useSuggestionsStore.getState().markLinked(note.id, wc)
             setBacklinkPos(null)
           }}
           onClose={() => setBacklinkPos(null)}
@@ -207,6 +222,19 @@ export function Editor({ noteId }: EditorProps) {
             else if (item.type === 'divider')   chain.setHorizontalRule().run()
             else if (item.type === 'math')      chain.insertContent({ type: 'mathBlock', attrs: { src: '' } }).run()
             else if (item.type === 'callout')   chain.insertContent({ type: 'calloutBlock' }).run()
+            else if (item.type === 'toggle') {
+              // insertContent can't reliably place block-with-block-content nodes.
+              // Use a raw transaction instead — tr.selection reflects state AFTER
+              // the preceding deleteRange step in the same chain.
+              chain.command(({ tr, state }) => {
+                const { $from } = tr.selection
+                const depth = Math.max(1, $from.depth)
+                const node  = state.schema.nodes.toggleBlock?.createAndFill({ open: true, title: '' })
+                if (!node) return false
+                tr.replaceWith($from.before(depth), $from.after(depth), node)
+                return true
+              }).run()
+            }
             else if (item.type === 'table')     chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
             else if (item.type === 'image') {
               chain.run()

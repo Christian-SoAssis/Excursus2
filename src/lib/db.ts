@@ -34,13 +34,15 @@ function mapRow(r: Row): Note {
   }
 }
 
+/** Recursively extract plain text from a TipTap JSONContent tree. */
+export function extractText(node: JSONContent): string {
+  let t = ''
+  if (node.type === 'text') t += (node.text ?? '') + ' '
+  if (node.content) for (const c of node.content) t += extractText(c)
+  return t
+}
+
 function countWords(content: JSONContent): number {
-  function extractText(node: JSONContent): string {
-    let t = ''
-    if (node.type === 'text') t += (node.text ?? '') + ' '
-    if (node.content) for (const c of node.content) t += extractText(c)
-    return t
-  }
   return extractText(content).trim().split(/\s+/).filter(Boolean).length
 }
 
@@ -77,6 +79,8 @@ export async function saveNote(params: {
   try { parsed = JSON.parse(params.content) } catch {}
   const wordCount = countWords(parsed)
 
+  const contentPlain = extractText(parsed).trim()
+
   const { error } = await supabase
     .from('notes')
     .upsert({
@@ -84,6 +88,7 @@ export async function saveNote(params: {
       title: params.title,
       folder: params.folder,
       content: params.content,
+      content_plain: contentPlain,
       word_count: wordCount,
       updated_at: new Date().toISOString(),
     })
@@ -157,6 +162,25 @@ export async function getGraph(): Promise<GraphData> {
     } catch {}
   }
   return { nodes, edges }
+}
+
+export interface NoteSuggestion {
+  id:    string
+  title: string
+  score: number
+}
+
+export async function getNoteSuggestions(
+  noteId:       string,
+  contentPlain: string,
+): Promise<NoteSuggestion[]> {
+  if (contentPlain.trim().length < 30) return []  // not enough text to compare
+  const { data, error } = await supabase.rpc('get_note_suggestions', {
+    p_note_id: noteId,
+    p_content: contentPlain,
+  })
+  if (error) throw new Error(error.message)
+  return (data ?? []) as NoteSuggestion[]
 }
 
 export async function searchNotes(query: string): Promise<Note[]> {

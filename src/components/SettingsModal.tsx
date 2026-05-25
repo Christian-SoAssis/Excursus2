@@ -4,6 +4,8 @@ import { useUIStore, type Accent, type UILanguage } from '../store/ui'
 import { useAiStore } from '../store/ai'
 import { useAuthStore } from '../store/auth'
 import { FONTS, type UIFont } from '../lib/fonts'
+import { useTutorialStore } from '../store/tutorial'
+import { TUTORIAL_STEPS, REWATCHABLE_STEPS } from './tutorial/TutorialData'
 
 /* ── Accent colours ─────────────────────────────────────────── */
 const ACCENTS: { value: Accent; label: string; cssVar: string }[] = [
@@ -146,6 +148,82 @@ function DeleteAccountSection() {
   )
 }
 
+/* ── Tutorial section ────────────────────────────────────────── */
+function TutorialSection({ onOpenTutorial }: { onOpenTutorial: (step: number) => void }) {
+  const [openGuide, setOpenGuide] = useState<string | null>(null)
+
+  const toggleGuide = (id: string) =>
+    setOpenGuide(prev => (prev === id ? null : id))
+
+  return (
+    <div className="cfg-tutorial-replay">
+      {/* Re-watch full onboarding */}
+      <button
+        className="cfg-tutorial-full-btn"
+        onClick={() => onOpenTutorial(0)}
+      >
+        <span className="cfg-tutorial-full-btn__icon">▶</span>
+        <span className="cfg-tutorial-full-btn__text">
+          Rever tutorial completo
+          <span className="cfg-tutorial-full-btn__sub">Percorre todos os {TUTORIAL_STEPS.length} passos do onboarding</span>
+        </span>
+      </button>
+
+      {/* Individual mode entries */}
+      {REWATCHABLE_STEPS.map(step => {
+        const idx      = TUTORIAL_STEPS.findIndex(s => s.id === step.id)
+        const isOpen   = openGuide === step.id
+        const hasGuide = step.written.length > 0
+
+        return (
+          <div key={step.id} className="cfg-tut-item">
+            <div className="cfg-tut-item__header">
+              <span className="cfg-tut-item__icon" style={{ color: step.iconColor }}>
+                {step.icon}
+              </span>
+              <span className="cfg-tut-item__name">{step.label}</span>
+
+              <div className="cfg-tut-item__actions">
+                {/* Watch animation */}
+                <button
+                  className="cfg-tut-watch-btn"
+                  onClick={() => onOpenTutorial(idx)}
+                  title={`Ver animação: ${step.label}`}
+                >
+                  ▶ Animação
+                </button>
+
+                {/* Toggle written guide */}
+                {hasGuide && (
+                  <button
+                    className={`cfg-tut-toggle-btn ${isOpen ? 'cfg-tut-toggle-btn--open' : ''}`}
+                    onClick={() => toggleGuide(step.id)}
+                    title={isOpen ? 'Fechar guia' : 'Ler guia escrito'}
+                  >
+                    {isOpen ? '▲' : '▼'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Written guide — collapsible */}
+            {isOpen && hasGuide && (
+              <div className="cfg-tut-guide">
+                <div className="cfg-tut-guide__label">Guia escrito</div>
+                <div className="cfg-tut-guide__paras">
+                  {step.written.map((para, i) => (
+                    <p key={i} className="cfg-tut-guide__p">{para}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /* ── Main modal ──────────────────────────────────────────────── */
 export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const {
@@ -154,6 +232,12 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   } = useUIStore()
   const { apiKey, setApiKey } = useAiStore()
   const { signOut } = useAuthStore()
+  const { openTutorial } = useTutorialStore()
+
+  const handleOpenTutorial = (step: number) => {
+    onClose()                          // fecha o painel de settings
+    setTimeout(() => openTutorial(step), 200)  // abre o tutorial com leve delay
+  }
 
   if (!open) return null
 
@@ -326,6 +410,14 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                 )
               })}
             </div>
+          </section>
+
+          <div className="cfg-sep" />
+
+          {/* ══ TUTORIAL ════════════════════════════════════════ */}
+          <section className="cfg-section">
+            <SectionLabel>Tutorial & Ajuda</SectionLabel>
+            <TutorialSection onOpenTutorial={handleOpenTutorial} />
           </section>
 
           <div className="cfg-sep" />

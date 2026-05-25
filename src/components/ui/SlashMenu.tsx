@@ -23,6 +23,7 @@ const SLASH_ITEMS: SlashItem[] = [
   { type: 'pdf-url',   label: 'PDF (URL)',       desc: 'Embed por link',         kbd: '' },
   { type: 'math',      label: 'Matemática',      desc: 'LaTeX / KaTeX',          kbd: '$$' },
   { type: 'callout',   label: 'Callout',         desc: 'Caixa de destaque',      kbd: '!' },
+  { type: 'toggle',   label: 'Toggle',          desc: 'Lista colapsável',        kbd: '>' },
   { type: 'divider',   label: 'Divisor',         desc: 'Linha horizontal',       kbd: '---' },
 ]
 
