@@ -188,6 +188,17 @@ input, textarea { font: inherit; color: inherit; }
 .appbar__avatar {
   width: 28px; height: 28px; border-radius: 50%;
   background: linear-gradient(135deg, var(--accent-electric), var(--accent-terracotta));
+  padding: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.appbar__avatar-img {
+  width: 100%; height: 100%;
+  object-fit: cover; border-radius: 50%;
+  display: block;
+}
+.appbar__avatar-initials {
+  font-size: 12px; font-weight: 700; color: #fff;
+  line-height: 1; user-select: none;
 }
 .appbar__hamburger {
   display: none;

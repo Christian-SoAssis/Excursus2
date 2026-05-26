@@ -32,6 +32,9 @@ export function AppBar({ onOpenSettings }: { onOpenSettings: () => void }) {
   const createNote = useNotesStore(s => s.createNote)
   const { user } = useAuthStore()
 
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined
+  const initials  = (user?.email ?? '?')[0].toUpperCase()
+
   return (
     <header className="appbar">
       <div className="appbar__brand">
@@ -65,7 +68,12 @@ export function AppBar({ onOpenSettings }: { onOpenSettings: () => void }) {
           title={`${user?.email ?? ''} · Configurações`}
           onClick={onOpenSettings}
           aria-label="Abrir configurações"
-        />
+        >
+          {avatarUrl
+            ? <img src={avatarUrl} alt="" className="appbar__avatar-img" />
+            : <span className="appbar__avatar-initials">{initials}</span>
+          }
+        </button>
       </div>
     </header>
   )

@@ -82,7 +82,7 @@ function AvatarSection() {
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
         style={{ display: 'none' }}
         onChange={handleFile}
       />
