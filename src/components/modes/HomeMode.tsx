@@ -833,10 +833,10 @@ export function HomeMode() {
             <div className="hm-quick__link-sub">force-directed · arraste nós · preview</div>
           </div>
           <div className="hm-quick__link" style={{ cursor: 'pointer', position: 'relative' }}
-            onClick={() => setTasks(TASK_SEED_DEF)}>
+            onClick={() => setTasks([])}>
             <div className="hm-quick__link-eyebrow">↺ resetar</div>
             <div className="hm-quick__link-title">Limpar <em>o dia</em></div>
-            <div className="hm-quick__link-sub">restaura a lista de tarefas</div>
+            <div className="hm-quick__link-sub">limpa todas as tarefas do dia</div>
           </div>
         </div>
       </div>
