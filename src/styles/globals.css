@@ -1142,6 +1142,33 @@ input, textarea { font: inherit; color: inherit; }
 .graph__panel-drag-handle { display: none; }
 .graph__panel-close { display: none; }
 
+/* Focus mode banner */
+.graph__focus-banner {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 10;
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 16px; border-radius: 999px;
+  background: var(--bg-glass); backdrop-filter: blur(16px);
+  border: 1px solid rgb(var(--accent-terracotta-rgb) / 0.4);
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-secondary); letter-spacing: 0.04em;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  white-space: nowrap;
+}
+.graph__focus-banner b { color: var(--text-primary); }
+.graph__focus-banner button {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 3px 10px; border-radius: 999px;
+  border: 1px solid rgb(var(--accent-terracotta-rgb) / 0.4);
+  color: var(--accent-terracotta);
+  background: rgb(var(--accent-terracotta-rgb) / 0.08);
+  cursor: pointer; letter-spacing: 0.05em; text-transform: uppercase;
+  transition: all .15s;
+}
+.graph__focus-banner button:hover {
+  background: rgb(var(--accent-terracotta-rgb) / 0.18);
+}
+
 /* =================================================================
    Sync status pill
 ================================================================= */
