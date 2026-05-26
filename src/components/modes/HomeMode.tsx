@@ -24,13 +24,19 @@ const greeting = () => { const h = new Date().getHours(); if (h<5) return 'Boa m
 
 /* ── types (imported from lib/homeData) ── */
 
+/* ── habit done helper ── */
+const isDone = (h: Habit, k: string): boolean => {
+  const val = h.history[k] ?? 0
+  return h.type === 'slider' ? val >= (h.sliderMax ?? 1) : val > 0
+}
+
 /* ── seeds ── */
-const HABIT_SEED_DEF = [
+const HABIT_SEED_DEF: Omit<Habit, 'history'>[] = [
   { id: 'meditar',  name: 'Meditar',            glyph: '◯', glyphCls: '',         sub: '10 min · manhã' },
   { id: 'ler',      name: 'Ler',                glyph: '⌇', glyphCls: '',         sub: 'antes de dormir' },
   { id: 'mover',    name: 'Movimento',          glyph: '↗', glyphCls: 'emerald',  sub: '30 min · qualquer hora' },
   { id: 'escrever', name: 'Escrever no diário', glyph: '✎', glyphCls: 'amber',    sub: 'reflexão noturna' },
-  { id: 'agua',     name: 'Beber água',         glyph: '~', glyphCls: 'electric', sub: '2L distribuídos' },
+  { id: 'agua',     name: 'Beber água',         glyph: '~', glyphCls: 'electric', sub: '2L · dia', type: 'slider', sliderMax: 8, unit: 'copos' },
   { id: 'estudar',  name: 'Estudar idioma',     glyph: '§', glyphCls: '',         sub: '20 min · Anki' },
 ]
 const REFLECT_PROMPTS = [
@@ -71,17 +77,19 @@ function computeStreak(habits: Habit[]) {
   const today = getToday()
   let s = 0
   for (let i = 0; i < 365; i++) {
-    if (habits.some(h => h.history[fmtKey(addDays(today, -i))])) s++; else break
+    const k = fmtKey(addDays(today, -i))
+    if (habits.some(h => isDone(h, k))) s++; else break
   }
   return s
 }
 function todayCompletion(habits: Habit[]) {
-  const k = fmtKey(getToday()); return { done: habits.filter(h => h.history[k]).length, total: habits.length }
+  const k = fmtKey(getToday())
+  return { done: habits.filter(h => isDone(h, k)).length, total: habits.length }
 }
 function weekCompletion(habits: Habit[]) {
   const today = getToday()
   let done = 0, total = 0
-  for (let i = 0; i < 7; i++) { const k = fmtKey(addDays(today,-i)); for (const h of habits) { total++; if (h.history[k]) done++ } }
+  for (let i = 0; i < 7; i++) { const k = fmtKey(addDays(today,-i)); for (const h of habits) { total++; if (isDone(h, k)) done++ } }
   return Math.round((done/total)*100)
 }
 
@@ -120,12 +128,23 @@ const TaskTextInput = memo(({ value, done, onChange }: { value: string; done: bo
 ================================================================ */
 const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a: Habit[] | ((p: Habit[]) => Habit[])) => void }) => {
   const [addingHabit, setAddingHabit] = useState(false)
-  const [habitDraft, setHabitDraft] = useState({ name: '', glyph: '○', sub: '' })
+  const [habitDraft, setHabitDraft] = useState({
+    name: '', glyph: '○', sub: '',
+    type: 'check' as 'check' | 'slider',
+    sliderMax: 8, unit: '',
+  })
 
   const toggle = useCallback((habitId: string) => {
     const k = fmtKey(getToday())
     setHabits(hs => hs.map(h => h.id === habitId
       ? { ...h, history: { ...h.history, [k]: h.history[k] ? 0 : 1 } }
+      : h))
+  }, [setHabits])
+
+  const setSliderValue = useCallback((habitId: string, val: number) => {
+    const k = fmtKey(getToday())
+    setHabits(hs => hs.map(h => h.id === habitId
+      ? { ...h, history: { ...h.history, [k]: val } }
       : h))
   }, [setHabits])
 
@@ -143,19 +162,31 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
       glyphCls: '',
       sub: habitDraft.sub.trim() || 'diariamente',
       history: {},
+      type: habitDraft.type,
+      ...(habitDraft.type === 'slider' && {
+        sliderMax: Number(habitDraft.sliderMax) || 10,
+        unit: habitDraft.unit.trim(),
+      }),
     }])
-    setHabitDraft({ name: '', glyph: '○', sub: '' })
+    setHabitDraft({ name: '', glyph: '○', sub: '', type: 'check', sliderMax: 8, unit: '' })
     setAddingHabit(false)
   }
 
   const habitStreak = (h: Habit) => {
     const today = getToday()
-    let s = 0; for (let i = 0; i < 200; i++) { if (h.history[fmtKey(addDays(today,-i))]) s++; else break }; return s
+    let s = 0
+    for (let i = 0; i < 200; i++) { if (isDone(h, fmtKey(addDays(today,-i)))) s++; else break }
+    return s
   }
   const lastSeven = (h: Habit) => {
     const today = getToday()
     return Array.from({ length: 7 }, (_, i) => {
-      const d = addDays(today, -(6-i)); return { date: d, done: !!h.history[fmtKey(d)], isToday: i === 6 }
+      const d   = addDays(today, -(6-i))
+      const k   = fmtKey(d)
+      const val = h.history[k] ?? 0
+      const done    = isDone(h, k)
+      const partial = h.type === 'slider' && val > 0 && !done
+      return { date: d, done, partial, isToday: i === 6 }
     })
   }
 
@@ -166,16 +197,19 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
       <div className="hm-card__head">
         <h2 className="hm-card__title">Hábitos <em>· hoje</em></h2>
         <div className="hm-card__meta hm-card__meta--row">
-          <span><b>{habits.filter(h => h.history[todayKey]).length}</b> / {habits.length}</span>
+          <span><b>{habits.filter(h => isDone(h, todayKey)).length}</b> / {habits.length}</span>
           <button className="hm-habit-add-btn" onClick={() => setAddingHabit(v => !v)} title="Adicionar hábito">+</button>
         </div>
       </div>
       <div className="hm-habits">
         {habits.map(h => {
-          const done = !!h.history[todayKey]
-          const streak = habitStreak(h)
+          const isSlider = h.type === 'slider'
+          const done     = isDone(h, todayKey)
+          const curVal   = h.history[todayKey] ?? 0
+          const maxVal   = h.sliderMax ?? 10
+          const streak   = habitStreak(h)
           return (
-            <div key={h.id} className="hm-habit" data-done={done}>
+            <div key={h.id} className={`hm-habit${isSlider ? ' hm-habit--slider' : ''}`} data-done={done}>
               <div className={`hm-habit__glyph hm-habit__glyph--${h.glyphCls || 'default'}`}>{h.glyph}</div>
               <div className="hm-habit__info">
                 <div className="hm-habit__name">{h.name}</div>
@@ -188,44 +222,111 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
                 {lastSeven(h).map((d, i) => (
                   <div key={i} className="hm-habit__week-dot"
                     data-done={d.done || undefined}
+                    data-partial={d.partial || undefined}
                     data-today={d.isToday || undefined}
-                    title={`${WEEKDAYS_PT[d.date.getDay()]} · ${d.done ? 'feito' : 'pendente'}`}/>
+                    title={`${WEEKDAYS_PT[d.date.getDay()]} · ${d.done ? 'feito' : d.partial ? 'parcial' : 'pendente'}`}/>
                 ))}
               </div>
               <button className="hm-habit__del" onClick={() => remove(h.id)} title="Remover hábito">×</button>
-              <button className="hm-habit__check" data-done={done} onClick={() => toggle(h.id)}
-                aria-label={done ? `Desmarcar ${h.name}` : `Marcar ${h.name} como feito`}>
-                <CheckIcon />
-              </button>
+
+              {isSlider ? (
+                /* ── Slider control ── */
+                <div className="hm-habit__slider-area">
+                  <span className="hm-habit__slider-val">
+                    {curVal}<span className="hm-habit__slider-max">/{maxVal}{h.unit ? ` ${h.unit}` : ''}</span>
+                  </span>
+                  <input
+                    type="range"
+                    className="hm-habit__slider"
+                    min={0} max={maxVal} step={1}
+                    value={curVal}
+                    onChange={e => setSliderValue(h.id, Number(e.target.value))}
+                    aria-label={`${h.name}: ${curVal} de ${maxVal}${h.unit ? ' ' + h.unit : ''}`}
+                  />
+                </div>
+              ) : (
+                /* ── Check button ── */
+                <button className="hm-habit__check" data-done={done} onClick={() => toggle(h.id)}
+                  aria-label={done ? `Desmarcar ${h.name}` : `Marcar ${h.name} como feito`}>
+                  <CheckIcon />
+                </button>
+              )}
             </div>
           )
         })}
+
         {addingHabit && (
           <div className="hm-habit-form">
-            <input
-              className="hm-habit-form__glyph"
-              value={habitDraft.glyph}
-              onChange={e => setHabitDraft(d => ({ ...d, glyph: e.target.value }))}
-              maxLength={2}
-              title="Ícone (emoji ou símbolo)"
-            />
-            <input
-              className="hm-habit-form__name"
-              placeholder="Nome do hábito"
-              value={habitDraft.name}
-              onChange={e => setHabitDraft(d => ({ ...d, name: e.target.value }))}
-              onKeyDown={e => e.key === 'Enter' && addHabit()}
-              autoFocus
-            />
-            <input
-              className="hm-habit-form__sub"
-              placeholder="Descrição (opcional)"
-              value={habitDraft.sub}
-              onChange={e => setHabitDraft(d => ({ ...d, sub: e.target.value }))}
-              onKeyDown={e => e.key === 'Enter' && addHabit()}
-            />
-            <button className="hm-habit-form__confirm" onClick={addHabit}>adicionar</button>
-            <button className="hm-habit-form__cancel" onClick={() => setAddingHabit(false)}>×</button>
+            {/* Row 1: icon + name + description */}
+            <div className="hm-habit-form__row1">
+              <input
+                className="hm-habit-form__glyph"
+                value={habitDraft.glyph}
+                onChange={e => setHabitDraft(d => ({ ...d, glyph: e.target.value }))}
+                maxLength={2}
+                title="Ícone (emoji ou símbolo)"
+              />
+              <input
+                className="hm-habit-form__name"
+                placeholder="Nome do hábito"
+                value={habitDraft.name}
+                onChange={e => setHabitDraft(d => ({ ...d, name: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && addHabit()}
+                autoFocus
+              />
+              <input
+                className="hm-habit-form__sub"
+                placeholder="Descrição (opcional)"
+                value={habitDraft.sub}
+                onChange={e => setHabitDraft(d => ({ ...d, sub: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && addHabit()}
+              />
+            </div>
+
+            {/* Row 2: type toggle */}
+            <div className="hm-habit-form__type-row">
+              <button
+                type="button"
+                className="hm-habit-form__type-btn"
+                data-active={habitDraft.type === 'check' || undefined}
+                onClick={() => setHabitDraft(d => ({ ...d, type: 'check' }))}
+              >✓ Verificação</button>
+              <button
+                type="button"
+                className="hm-habit-form__type-btn"
+                data-active={habitDraft.type === 'slider' || undefined}
+                onClick={() => setHabitDraft(d => ({ ...d, type: 'slider' }))}
+              >⟷ Quantidade</button>
+            </div>
+
+            {/* Row 3: slider-specific fields */}
+            {habitDraft.type === 'slider' && (
+              <div className="hm-habit-form__slider-opts">
+                <label className="hm-habit-form__slider-label">Meta</label>
+                <input
+                  type="number"
+                  className="hm-habit-form__slider-max"
+                  min={1} max={9999}
+                  value={habitDraft.sliderMax}
+                  onChange={e => setHabitDraft(d => ({ ...d, sliderMax: Number(e.target.value) }))}
+                  placeholder="8"
+                />
+                <label className="hm-habit-form__slider-label">Unidade</label>
+                <input
+                  className="hm-habit-form__slider-unit"
+                  placeholder="copos, km, min…"
+                  value={habitDraft.unit}
+                  onChange={e => setHabitDraft(d => ({ ...d, unit: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && addHabit()}
+                />
+              </div>
+            )}
+
+            {/* Row 4: actions */}
+            <div className="hm-habit-form__actions">
+              <button className="hm-habit-form__confirm" onClick={addHabit}>adicionar</button>
+              <button className="hm-habit-form__cancel" onClick={() => setAddingHabit(false)}>×</button>
+            </div>
           </div>
         )}
       </div>
@@ -470,13 +571,13 @@ const Heatmap = memo(({ habits, filter, setFilter }: { habits: Habit[]; filter: 
       let level = 0, value = 0, totalHabits = 0
       if (inRange) {
         const k = fmtKey(date)
-        if (filter === 'all') { for (const h of habits) { totalHabits++; if (h.history[k]) value++ }; const p = totalHabits ? value/totalHabits : 0; level = p>=.85?4:p>=.6?3:p>=.35?2:p>0?1:0 }
+        if (filter === 'all') { for (const h of habits) { totalHabits++; if (isDone(h, k)) value++ }; const p = totalHabits ? value/totalHabits : 0; level = p>=.85?4:p>=.6?3:p>=.35?2:p>0?1:0 }
         else {
           const h = habits.find(hab => hab.id === filter)
-          totalHabits = 1; value = h?.history[k] ? 1 : 0
+          totalHabits = 1; value = (h && isDone(h, k)) ? 1 : 0
           if (h) {
             let wk = 0
-            for (let j = 0; j < 7; j++) if (h.history[fmtKey(addDays(date, -j))]) wk++
+            for (let j = 0; j < 7; j++) if (isDone(h, fmtKey(addDays(date, -j)))) wk++
             const p = wk / 7
             level = p >= .85 ? 4 : p >= .6 ? 3 : p >= .35 ? 2 : p > 0 ? 1 : 0
           }
@@ -553,7 +654,7 @@ const ConsistencyChart = memo(({ habits }: { habits: Habit[] }) => {
   const iH   = H - PAD.t - PAD.b
   const data = Array.from({ length: DAYS }, (_, i) => {
     const d = addDays(today, -(DAYS-1-i)); const k = fmtKey(d)
-    let done = 0; for (const h of habits) if (h.history[k]) done++
+    let done = 0; for (const h of habits) if (isDone(h, k)) done++
     return { date: d, value: habits.length ? done/habits.length : 0, raw: done }
   })
   const xp = (i: number) => PAD.l + (i/(DAYS-1)) * iW

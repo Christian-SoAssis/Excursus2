@@ -1,7 +1,13 @@
 import { supabase } from './supabase'
 
-export interface HabitHistory { [key: string]: 0 | 1 }
-export interface Habit  { id: string; name: string; glyph: string; glyphCls: string; sub: string; history: HabitHistory }
+export interface HabitHistory { [key: string]: number }   // 0|1 for check, 0–N for slider
+export interface Habit {
+  id: string; name: string; glyph: string; glyphCls: string; sub: string
+  history: HabitHistory
+  type?:      'check' | 'slider'   // default: 'check'
+  sliderMax?: number               // e.g. 8 (glasses), 10 000 (steps)
+  unit?:      string               // e.g. 'copos', 'km', 'min'
+}
 export type TaskPriority = 'high' | 'medium' | 'low'
 export interface Task   { id: string; text: string; tag: string; tagCls: string; done: boolean; priority?: TaskPriority; gcalEventId?: string }
 export interface ReflectEntry { text: string; mood: number }

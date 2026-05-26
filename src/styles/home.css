@@ -197,8 +197,9 @@
   border: 1px solid var(--border-subtle);
   transition: all .2s var(--ease);
 }
-.hm-habit__week-dot[data-done]   { background: rgb(var(--accent-terracotta-rgb) / 0.55); border-color: rgb(var(--accent-terracotta-rgb) / 0.6); }
-.hm-habit__week-dot[data-today] { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+.hm-habit__week-dot[data-done]    { background: rgb(var(--accent-terracotta-rgb) / 0.55); border-color: rgb(var(--accent-terracotta-rgb) / 0.6); }
+.hm-habit__week-dot[data-partial] { background: rgb(var(--accent-terracotta-rgb) / 0.22); border-color: rgb(var(--accent-terracotta-rgb) / 0.35); }
+.hm-habit__week-dot[data-today]  { outline: 1px solid var(--text-muted); outline-offset: 2px; }
 
 .hm-habit__check {
   width: 28px; height: 28px;
@@ -241,12 +242,43 @@
 }
 .hm-habit-add-btn:hover { color: var(--text-primary); border-color: var(--border-default); }
 
+/* ── Slider habit row ── */
+.hm-habit--slider {
+  grid-template-columns: 22px minmax(0, 1fr) auto auto auto;
+}
+.hm-habit__slider-area {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+  min-width: 100px;
+}
+.hm-habit__slider-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-terracotta);
+  line-height: 1;
+}
+.hm-habit__slider-max {
+  font-weight: 400;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+.hm-habit__slider {
+  width: 100px;
+  accent-color: var(--accent-terracotta);
+  cursor: pointer;
+  height: 4px;
+}
+.hm-habit[data-done="true"] .hm-habit__slider-val { color: var(--text-muted); }
+
 /* Formulário inline para novo hábito */
 .hm-habit-form {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 0;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 0;
   border-top: 1px dashed var(--border-subtle);
   margin-top: 2px;
+}
+.hm-habit-form__row1 {
+  display: flex; align-items: center; gap: 8px;
 }
 .hm-habit-form__glyph {
   width: 34px; text-align: center;
@@ -270,14 +302,65 @@
   letter-spacing: 0.04em;
 }
 .hm-habit-form__sub::placeholder { color: var(--text-faint); }
+
+/* Type toggle (Verificação / Quantidade) */
+.hm-habit-form__type-row {
+  display: flex; gap: 6px;
+}
+.hm-habit-form__type-btn {
+  flex: 1;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 5px 8px; border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer; transition: all .15s;
+}
+.hm-habit-form__type-btn[data-active] {
+  background: rgb(var(--accent-terracotta-rgb) / 0.12);
+  color: var(--accent-terracotta);
+  border-color: rgb(var(--accent-terracotta-rgb) / 0.4);
+}
+.hm-habit-form__type-btn:hover:not([data-active]) {
+  color: var(--text-primary); border-color: var(--border-default);
+}
+
+/* Slider-specific config row */
+.hm-habit-form__slider-opts {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  background: var(--bg-elevated);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+.hm-habit-form__slider-label {
+  font-family: var(--font-mono); font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-faint); flex-shrink: 0;
+}
+.hm-habit-form__slider-max {
+  width: 56px;
+  background: transparent; border: none; border-bottom: 1px solid var(--border-default);
+  color: var(--text-primary); padding: 2px 4px; outline: none;
+  font-family: var(--font-mono); font-size: 13px; text-align: center;
+}
+.hm-habit-form__slider-unit {
+  flex: 1; min-width: 0;
+  background: transparent; border: none; border-bottom: 1px solid var(--border-default);
+  color: var(--text-primary); padding: 2px 4px; outline: none;
+  font-family: var(--font-mono); font-size: 12px;
+}
+
+/* Actions row */
+.hm-habit-form__actions { display: flex; align-items: center; gap: 8px; }
 .hm-habit-form__confirm {
   font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
   padding: 4px 10px; border-radius: 999px;
   background: rgb(var(--accent-terracotta-rgb) / 0.12);
   color: var(--accent-terracotta);
   border: 1px solid rgb(var(--accent-terracotta-rgb) / 0.3);
-  transition: all .15s;
-  white-space: nowrap;
+  transition: all .15s; white-space: nowrap;
 }
 .hm-habit-form__confirm:hover { background: rgb(var(--accent-terracotta-rgb) / 0.2); }
 .hm-habit-form__cancel {
