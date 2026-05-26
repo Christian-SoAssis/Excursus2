@@ -33,12 +33,6 @@ const HABIT_SEED_DEF = [
   { id: 'agua',     name: 'Beber água',         glyph: '~', glyphCls: 'electric', sub: '2L distribuídos' },
   { id: 'estudar',  name: 'Estudar idioma',     glyph: '§', glyphCls: '',         sub: '20 min · Anki' },
 ]
-const TASK_SEED_DEF: Task[] = [
-  { id: 't1', text: 'Revisar PR da feature de busca semântica', tag: 'trabalho', tagCls: 'electric', done: false },
-  { id: 't2', text: 'Comprar café em grão e leite vegetal',     tag: 'casa',     tagCls: '',         done: false },
-  { id: 't3', text: 'Responder e-mail do conselheiro do TCC',   tag: 'estudo',   tagCls: 'amber',    done: true  },
-  { id: 't4', text: 'Marcar consulta com a dentista',           tag: 'saúde',    tagCls: 'emerald',  done: false },
-]
 const REFLECT_PROMPTS = [
   'O que pediu sua atenção hoje, mesmo que você não tenha dado?',
   'O que você quer levar de hoje pra amanhã?',
@@ -833,7 +827,16 @@ export function HomeMode() {
             <div className="hm-quick__link-sub">force-directed · arraste nós · preview</div>
           </div>
           <div className="hm-quick__link" style={{ cursor: 'pointer', position: 'relative' }}
-            onClick={() => setTasks([])}>
+            onClick={() => {
+              _setTasks([])
+              if (user) {
+                saveHomeData(user.id, {
+                  habits:  habitsRef.current,
+                  tasks:   [],
+                  reflect: reflectRef.current,
+                }).catch(() => {})
+              }
+            }}>
             <div className="hm-quick__link-eyebrow">↺ resetar</div>
             <div className="hm-quick__link-title">Limpar <em>o dia</em></div>
             <div className="hm-quick__link-sub">limpa todas as tarefas do dia</div>
