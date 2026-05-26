@@ -326,7 +326,7 @@
   width: 100%;
   min-width: 0;
 }
-.hm-task__text[data-done] {
+.hm-task__text[data-done="true"] {
   color: var(--text-muted);
   text-decoration: line-through;
   text-decoration-color: var(--text-faint);
