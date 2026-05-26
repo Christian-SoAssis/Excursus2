@@ -129,10 +129,17 @@ const TaskTextInput = memo(({ value, done, onChange }: { value: string; done: bo
 const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a: Habit[] | ((p: Habit[]) => Habit[])) => void }) => {
   const [addingHabit, setAddingHabit] = useState(false)
   const [habitDraft, setHabitDraft] = useState({
-    name: '', glyph: '○', sub: '',
+    name: '', glyph: '○', sub: '', glyphCls: '',
     type: 'check' as 'check' | 'slider',
     sliderMax: 8, unit: '',
   })
+
+  const GLYPH_COLORS = [
+    { cls: '',         label: 'Terracota' },
+    { cls: 'electric', label: 'Elétrico'  },
+    { cls: 'emerald',  label: 'Esmeralda' },
+    { cls: 'amber',    label: 'Âmbar'     },
+  ]
 
   const toggle = useCallback((habitId: string) => {
     const k = fmtKey(getToday())
@@ -159,7 +166,7 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
       id: 'h_' + Date.now(),
       name,
       glyph: habitDraft.glyph.trim() || '○',
-      glyphCls: '',
+      glyphCls: habitDraft.glyphCls,
       sub: habitDraft.sub.trim() || 'diariamente',
       history: {},
       type: habitDraft.type,
@@ -168,7 +175,7 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
         unit: habitDraft.unit.trim(),
       }),
     }])
-    setHabitDraft({ name: '', glyph: '○', sub: '', type: 'check', sliderMax: 8, unit: '' })
+    setHabitDraft({ name: '', glyph: '○', sub: '', glyphCls: '', type: 'check', sliderMax: 8, unit: '' })
     setAddingHabit(false)
   }
 
@@ -209,7 +216,7 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
           const maxVal   = h.sliderMax ?? 10
           const streak   = habitStreak(h)
           return (
-            <div key={h.id} className={`hm-habit${isSlider ? ' hm-habit--slider' : ''}`} data-done={done}>
+            <div key={h.id} className="hm-habit" data-done={done}>
               <div className={`hm-habit__glyph hm-habit__glyph--${h.glyphCls || 'default'}`}>{h.glyph}</div>
               <div className="hm-habit__info">
                 <div className="hm-habit__name">{h.name}</div>
@@ -217,6 +224,21 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
                   <span>{h.sub}</span>
                   {streak > 1 && <span><b>{streak}d</b> seguidos</span>}
                 </div>
+                {/* Slider lives here so dots column stays aligned with checkbox rows */}
+                {isSlider && (
+                  <div className="hm-habit__inline-slider">
+                    <input
+                      type="range"
+                      min={0} max={maxVal} step={1}
+                      value={curVal}
+                      onChange={e => setSliderValue(h.id, Number(e.target.value))}
+                      aria-label={`${h.name}: ${curVal} de ${maxVal}${h.unit ? ' ' + h.unit : ''}`}
+                    />
+                    <span className="hm-habit__slider-val">
+                      {curVal}<span className="hm-habit__slider-max">/{maxVal}{h.unit ? ` ${h.unit}` : ''}</span>
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="hm-habit__week" title="últimos 7 dias">
                 {lastSeven(h).map((d, i) => (
@@ -229,28 +251,13 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
               </div>
               <button className="hm-habit__del" onClick={() => remove(h.id)} title="Remover hábito">×</button>
 
-              {isSlider ? (
-                /* ── Slider control ── */
-                <div className="hm-habit__slider-area">
-                  <span className="hm-habit__slider-val">
-                    {curVal}<span className="hm-habit__slider-max">/{maxVal}{h.unit ? ` ${h.unit}` : ''}</span>
-                  </span>
-                  <input
-                    type="range"
-                    className="hm-habit__slider"
-                    min={0} max={maxVal} step={1}
-                    value={curVal}
-                    onChange={e => setSliderValue(h.id, Number(e.target.value))}
-                    aria-label={`${h.name}: ${curVal} de ${maxVal}${h.unit ? ' ' + h.unit : ''}`}
-                  />
-                </div>
-              ) : (
-                /* ── Check button ── */
-                <button className="hm-habit__check" data-done={done} onClick={() => toggle(h.id)}
-                  aria-label={done ? `Desmarcar ${h.name}` : `Marcar ${h.name} como feito`}>
-                  <CheckIcon />
-                </button>
-              )}
+              {isSlider
+                ? <div className="hm-habit__slider-spacer" aria-hidden />
+                : <button className="hm-habit__check" data-done={done} onClick={() => toggle(h.id)}
+                    aria-label={done ? `Desmarcar ${h.name}` : `Marcar ${h.name} como feito`}>
+                    <CheckIcon />
+                  </button>
+              }
             </div>
           )
         })}
@@ -283,7 +290,23 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
               />
             </div>
 
-            {/* Row 2: type toggle */}
+            {/* Row 2: icon color */}
+            <div className="hm-habit-form__color-row">
+              <span className="hm-habit-form__color-label">Cor do ícone</span>
+              {GLYPH_COLORS.map(({ cls, label }) => (
+                <button
+                  key={cls || 'default'}
+                  type="button"
+                  className={`hm-habit-form__color-swatch hm-habit-form__color-swatch--${cls || 'default'}`}
+                  data-active={habitDraft.glyphCls === cls || undefined}
+                  onClick={() => setHabitDraft(d => ({ ...d, glyphCls: cls }))}
+                  title={label}
+                  aria-label={label}
+                />
+              ))}
+            </div>
+
+            {/* Row 3: type toggle */}
             <div className="hm-habit-form__type-row">
               <button
                 type="button"
@@ -299,7 +322,7 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
               >⟷ Quantidade</button>
             </div>
 
-            {/* Row 3: slider-specific fields */}
+            {/* Row 4: slider-specific fields */}
             {habitDraft.type === 'slider' && (
               <div className="hm-habit-form__slider-opts">
                 <label className="hm-habit-form__slider-label">Meta</label>
@@ -322,7 +345,7 @@ const HabitsCard = memo(({ habits, setHabits }: { habits: Habit[]; setHabits: (a
               </div>
             )}
 
-            {/* Row 4: actions */}
+            {/* Row 5: actions */}
             <div className="hm-habit-form__actions">
               <button className="hm-habit-form__confirm" onClick={addHabit}>adicionar</button>
               <button className="hm-habit-form__cancel" onClick={() => setAddingHabit(false)}>×</button>
