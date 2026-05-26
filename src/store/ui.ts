@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { UIFont } from '../lib/fonts'
 
-export type Mode     = 'home' | 'floating' | 'spatial' | 'graph' | 'ai' | 'zen' | 'calendar'
+export type Mode     = 'home' | 'floating' | 'spatial' | 'graph' | 'ai' | 'zen' | 'calendar' | 'gantt'
 export type Theme    = 'dark' | 'light'
 export type Accent   = 'terracotta' | 'amber' | 'electric' | 'emerald'
 export type UILanguage = 'pt' // | 'en'  ← to be added in the future

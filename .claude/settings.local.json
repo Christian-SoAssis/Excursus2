@@ -29,7 +29,11 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:1420/)",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('\\\\n'.join\\(sorted\\(list\\(d.get\\('dependencies',{}\\).keys\\(\\)\\) + list\\(d.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\\)\\)\")",
       "Bash(node scripts/generate-icons.mjs)",
-      "Bash(supabase db *)"
+      "Bash(supabase db *)",
+      "PowerShell(Get-Command java -ErrorAction SilentlyContinue)",
+      "PowerShell(java -version 2>&1)",
+      "PowerShell($env:JAVA_HOME)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\chris\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\ndk\\\\29.0.13846066\\\\toolchains\\\\llvm\\\\prebuilt\\\\windows-x86_64\\\\bin\" | Where-Object { $_.Name -match \"^\\(armv7a|aarch64|i686|x86_64\\)-linux-android\\(eabi\\)?21-clang\\\\.cmd$\" } | Select-Object Name | Sort-Object Name)"
     ]
   }
 }

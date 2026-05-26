@@ -19,6 +19,7 @@ function SyncPill() {
 const MODES = [
   { id: 'home'     as const, label: 'Hoje'       },
   { id: 'calendar' as const, label: 'Calendário' },
+  { id: 'gantt'    as const, label: 'Gantt'      },
   { id: 'floating' as const, label: 'Floating'   },
   { id: 'spatial'  as const, label: 'Spatial'    },
   { id: 'graph'    as const, label: 'Graph'      },
