@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { useAuthStore } from '../../store/auth'
 import { useSyncStore } from '../../store/sync'
 import { loadHomeData, saveHomeData } from '../../lib/homeData'
-import type { Habit, Task, ReflectStore } from '../../lib/homeData'
+import type { Habit, Task, TaskPriority, ReflectStore } from '../../lib/homeData'
 import { connectGoogleCalendar, disconnectGoogleCalendar, isConnected } from '../../lib/googleAuth'
 import { fetchTodayEvents, createEvent, updateEventSummary, deleteEvent } from '../../lib/googleCalendar'
 import type { CalendarEvent } from '../../lib/googleCalendar'
@@ -319,6 +319,19 @@ const CalendarCard = memo(({
 /* ================================================================
    TasksCard
 ================================================================ */
+const PRIORITY_CYCLE: (TaskPriority | undefined)[] = [undefined, 'high', 'medium', 'low']
+const PRIORITY_LABEL: Record<TaskPriority, string> = { high: 'Alta', medium: 'Média', low: 'Baixa' }
+const PRIORITY_ORDER: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 }
+
+function sortedTasks(tasks: Task[]): Task[] {
+  return [...tasks].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1
+    const pa = a.priority != null ? PRIORITY_ORDER[a.priority] : 3
+    const pb = b.priority != null ? PRIORITY_ORDER[b.priority] : 3
+    return pa - pb
+  })
+}
+
 const TasksCard = memo(({
   tasks, setTasks, gcalConnected, onSyncToggle, onToggle, onRemove,
 }: {
@@ -332,12 +345,22 @@ const TasksCard = memo(({
   const [draft, setDraft] = useState('')
   const open = tasks.filter(t => !t.done).length
 
-  const editText = useCallback((id: string, text: string) => setTasks(ts => ts.map(t => t.id === id ? { ...t, text } : t)), [setTasks])
+  const editText     = useCallback((id: string, text: string) =>
+    setTasks(ts => ts.map(t => t.id === id ? { ...t, text } : t)), [setTasks])
+
+  const cyclePriority = useCallback((id: string, current: TaskPriority | undefined) => {
+    const idx  = PRIORITY_CYCLE.indexOf(current)
+    const next = PRIORITY_CYCLE[(idx + 1) % PRIORITY_CYCLE.length]
+    setTasks(ts => ts.map(t => t.id === id ? { ...t, priority: next } : t))
+  }, [setTasks])
+
   const add = () => {
     const txt = draft.trim(); if (!txt) return
     setTasks(ts => [...ts, { id: 'u_' + Date.now(), text: txt, tag: 'hoje', tagCls: '', done: false }])
     setDraft('')
   }
+
+  const sorted = sortedTasks(tasks)
 
   return (
     <div className="hm-card">
@@ -346,16 +369,32 @@ const TasksCard = memo(({
         <div className="hm-card__meta"><span><b>{open}</b> em aberto</span></div>
       </div>
       <div className="hm-tasks">
-        {tasks.map(t => (
+        {sorted.map(t => (
           <div key={t.id} className="hm-task" data-done={t.done}>
             <button className="hm-task__check" data-done={t.done} onClick={() => onToggle(t.id)}
               aria-label={t.done ? 'Desmarcar tarefa' : 'Concluir tarefa'}><CheckIcon /></button>
+
+            {/* Priority dot — click cycles high → medium → low → none */}
+            <button
+              className="hm-task__priority"
+              data-priority={t.priority ?? 'none'}
+              onClick={() => cyclePriority(t.id, t.priority)}
+              title={t.priority ? `Prioridade: ${PRIORITY_LABEL[t.priority]} (clique para trocar)` : 'Definir prioridade'}
+              aria-label="Prioridade"
+            />
+
             <div className="hm-task__body">
               <TaskTextInput value={t.text} done={t.done} onChange={text => editText(t.id, text)} />
               <div className="hm-task__meta">
                 <span className={`hm-task__tag hm-task__tag--${t.tagCls || 'clay'}`}>{t.tag}</span>
+                {t.priority && (
+                  <span className={`hm-task__priority-badge hm-task__priority-badge--${t.priority}`}>
+                    {PRIORITY_LABEL[t.priority]}
+                  </span>
+                )}
               </div>
             </div>
+
             {gcalConnected && (
               <button
                 className="hm-task__cal-btn"
