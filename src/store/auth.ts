@@ -3,27 +3,33 @@ import { supabase } from '../lib/supabase'
 import type { User } from '@supabase/supabase-js'
 
 interface AuthStore {
-  user:          User | null
-  loading:       boolean
-  initialize:    () => void
-  signIn:        (email: string, password: string) => Promise<string | null>
-  signUp:        (email: string, password: string) => Promise<string | null>
-  signOut:       () => Promise<void>
-  resetPassword: (email: string) => Promise<string | null>
-  deleteAccount: () => Promise<void>
-  updateAvatar:  (file: File) => Promise<void>
+  user:           User | null
+  loading:        boolean
+  isRecovering:   boolean          // true while the user is in password-reset flow
+  initialize:     () => void
+  signIn:         (email: string, password: string) => Promise<string | null>
+  signUp:         (email: string, password: string) => Promise<string | null>
+  signOut:        () => Promise<void>
+  resetPassword:  (email: string) => Promise<string | null>
+  updatePassword: (password: string) => Promise<string | null>
+  deleteAccount:  () => Promise<void>
+  updateAvatar:   (file: File) => Promise<void>
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
-  user:    null,
-  loading: true,
+  user:         null,
+  loading:      true,
+  isRecovering: false,
 
   initialize: () => {
     supabase.auth.getSession().then(({ data }) => {
       set({ user: data.session?.user ?? null, loading: false })
     })
-    supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
       set({ user: session?.user ?? null, loading: false })
+      if (event === 'PASSWORD_RECOVERY') {
+        set({ isRecovering: true })
+      }
     })
   },
 
@@ -44,6 +50,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       redirectTo: `${window.location.origin}`,
     })
     return error?.message ?? null
+  },
+
+  updatePassword: async (password) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) return error.message
+    set({ isRecovering: false })
+    return null
   },
 
   signOut: async () => {

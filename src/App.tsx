@@ -14,6 +14,7 @@ import { GanttMode } from './components/modes/GanttMode'
 import { TweaksPanel } from './components/TweaksPanel'
 import { SettingsModal } from './components/SettingsModal'
 import { LandingPage } from './components/LandingPage'
+import { ResetPasswordPage } from './components/auth/ResetPasswordPage'
 import { TutorialOverlay } from './components/tutorial/TutorialOverlay'
 import { SuggestionsPanel } from './components/ui/SuggestionsPanel'
 import { MobileHeader } from './components/mobile/MobileHeader'
@@ -32,7 +33,7 @@ export function App() {
   const { isMobile } = usePlatform()
   const { mode, setMode, theme, accent, fontScale, uiFont, showHandles } = useUIStore()
   const loadNotes = useNotesStore(s => s.loadNotes)
-  const { user, loading, initialize } = useAuthStore()
+  const { user, loading, initialize, isRecovering } = useAuthStore()
   const { initNetworkWatcher, drainQueue } = useSyncStore()
   const { hasSeenOnboarding, openTutorial } = useTutorialStore()
 
@@ -127,6 +128,11 @@ export function App() {
 
   if (loading) {
     return <div className="auth-loading"><span className="auth-loading__dot"/></div>
+  }
+
+  // User clicked the reset-password link in their email
+  if (isRecovering) {
+    return <ResetPasswordPage />
   }
 
   if (!user) {
