@@ -13,7 +13,8 @@ export function MathBlockView({ node, updateAttributes }: NodeViewProps) {
     try {
       return katex.renderToString(src, { displayMode: true, throwOnError: false, output: 'html' })
     } catch {
-      return `<span style="color:var(--accent-terracotta);font-family:var(--font-mono);font-size:13px">${src}</span>`
+      const escaped = src.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+      return `<span style="color:var(--accent-terracotta);font-family:var(--font-mono);font-size:13px">${escaped}</span>`
     }
   }, [src])
 

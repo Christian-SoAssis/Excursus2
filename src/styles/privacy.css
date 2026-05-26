@@ -1,0 +1,246 @@
+/* ================================================================
+   Excursus — Privacy Policy Page
+   ================================================================ */
+
+.prv-page {
+  min-height: 100vh;
+  background: #0e0f0c;
+  color: var(--text-primary, #e8e3df);
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+.prv-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(14, 15, 12, 0.88);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+}
+
+.prv-header__back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary, #e8e3df);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
+.prv-header__back:hover {
+  opacity: 1;
+}
+
+/* ── Body ── */
+.prv-body {
+  flex: 1;
+  padding: 60px 24px;
+}
+
+.prv-container {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* ── Title ── */
+.prv-title {
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0 0 8px;
+  background: linear-gradient(135deg, #ff9d77 0%, #f0bd8b 50%, #c4b6ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.prv-updated {
+  font-size: 13px;
+  color: var(--text-tertiary, #7a7370);
+  margin: 0 0 52px;
+}
+
+/* ── Sections ── */
+.prv-section {
+  margin-bottom: 48px;
+}
+
+.prv-section h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary, #e8e3df);
+  margin: 0 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.prv-section p,
+.prv-section li {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text-secondary, #b8b0ab);
+  margin: 0 0 10px;
+}
+
+.prv-section ul {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.prv-section ul li {
+  margin-bottom: 8px;
+}
+
+.prv-section li:last-child {
+  margin-bottom: 0;
+}
+
+.prv-section strong {
+  color: var(--text-primary, #e8e3df);
+  font-weight: 600;
+}
+
+.prv-section a {
+  color: #c4b6ff;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.prv-section a:hover {
+  color: #ddd6ff;
+  text-decoration: underline;
+}
+
+.prv-section code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #f0bd8b;
+}
+
+/* ── Tables ── */
+.prv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 4px 0 16px;
+}
+
+.prv-table thead tr {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.prv-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary, #7a7370);
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.prv-table td {
+  padding: 10px 12px;
+  vertical-align: top;
+  color: var(--text-secondary, #b8b0ab);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  line-height: 1.6;
+}
+
+.prv-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.prv-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.prv-table td strong {
+  color: var(--text-primary, #e8e3df);
+}
+
+.prv-table td a {
+  color: #c4b6ff;
+  text-decoration: none;
+  font-size: 12px;
+  transition: color 0.15s;
+}
+
+.prv-table td a:hover {
+  color: #ddd6ff;
+  text-decoration: underline;
+}
+
+/* ── Note ── */
+.prv-note {
+  font-size: 12px !important;
+  color: var(--text-tertiary, #7a7370) !important;
+  font-style: italic;
+  margin-top: 8px !important;
+}
+
+/* ── Footer ── */
+.prv-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 28px 24px;
+  font-size: 13px;
+  color: var(--text-tertiary, #7a7370);
+}
+
+.prv-footer .prv-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.prv-footer p {
+  margin: 0;
+}
+
+.prv-footer a {
+  color: var(--text-tertiary, #7a7370);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.prv-footer a:hover {
+  color: var(--text-secondary, #b8b0ab);
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .prv-body {
+    padding: 40px 16px;
+  }
+
+  .prv-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .prv-footer .prv-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

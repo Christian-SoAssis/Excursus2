@@ -1,4 +1,5 @@
-import { Node, mergeAttributes } from '@tiptap/core'
+import { Node, mergeAttributes, InputRule } from '@tiptap/core'
+import { TextSelection } from '@tiptap/pm/state'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import { ToggleBlockView } from '../../ui/ToggleBlockView'
 
@@ -35,6 +36,46 @@ export const ToggleBlock = Node.create({
     return ReactNodeViewRenderer(ToggleBlockView)
   },
 
+  /**
+   * Input rule: "> " (greater-than + space) at the start of a blank paragraph
+   * → toggle block.
+   *
+   * This fires through ProseMirror's input-rule plugin, which runs with the
+   * priority of the extension that registered it (200 here, vs. StarterKit's
+   * 100 for the blockquote rule).  Because we have higher priority, our rule
+   * is evaluated first; once we match and modify the transaction the blockquote
+   * rule never sees the same text.
+   *
+   * The keyboard shortcut below is a complementary fast-path that intercepts
+   * the Space keydown BEFORE the character is inserted — belt-and-suspenders.
+   */
+  addInputRules() {
+    const type = this.type
+    return [
+      new InputRule({
+        find: /^> $/,
+        handler({ state, range }) {
+          const { tr } = state
+          const $from = state.doc.resolve(range.from)
+          // Only convert plain paragraphs — leave blockquotes, list-items, etc. alone
+          if ($from.parent.type.name !== 'paragraph') return
+          const nodeStart = $from.before($from.depth)
+          const nodeEnd   = $from.after($from.depth)
+          const node = type.createAndFill({ open: true, title: '' })
+          if (!node) return
+          tr.replaceWith(nodeStart, nodeEnd, node)
+          // Move cursor inside the toggle body:
+          // nodeStart+1 = inside toggleBlock (after its open token)
+          // nodeStart+2 = inside first child block (after its open token)
+          const bodyPos = nodeStart + 2
+          if (bodyPos <= tr.doc.content.size) {
+            tr.setSelection(TextSelection.near(tr.doc.resolve(bodyPos)))
+          }
+        },
+      }),
+    ]
+  },
+
   addKeyboardShortcuts() {
     /** Replace the current paragraph with a toggleBlock. */
     const createToggle = (title: string): boolean => {
@@ -57,6 +98,43 @@ export const ToggleBlock = Node.create({
     }
 
     return {
+      /**
+       * Backspace at the very start of an empty toggle body → delete the
+       * whole toggleBlock and leave an empty paragraph in its place.
+       *
+       * Without this, `isolating: true` prevents the cursor from ever
+       * crossing the toggle boundary, so users would be stuck inside.
+       */
+      Backspace: () => {
+        const { state } = this.editor
+        const { $from, empty } = state.selection
+        if (!empty) return false
+
+        // Walk up to see if we're inside a toggleBlock
+        let tDepth = -1
+        for (let d = $from.depth; d >= 1; d--) {
+          if ($from.node(d).type === this.type) { tDepth = d; break }
+        }
+        if (tDepth < 0) return false
+
+        // Cursor must be at the very start of the toggle's body content.
+        // ProseMirror layout: tStart(open) | para(open) | ...content... | para(close) | tEnd(close)
+        // So "start of first para content" = tStart + 2
+        const tStart = $from.before(tDepth)
+        if ($from.pos !== tStart + 2) return false
+
+        // Only delete the toggle when the body is a single empty paragraph
+        const tNode = $from.node(tDepth)
+        if (tNode.childCount !== 1 || tNode.firstChild!.content.size !== 0) return false
+
+        const tEnd = $from.after(tDepth)
+        return this.editor.commands.command(({ tr }) => {
+          tr.replaceWith(tStart, tEnd, state.schema.nodes.paragraph.create())
+          tr.setSelection(TextSelection.near(tr.doc.resolve(tStart + 1)))
+          return true
+        })
+      },
+
       /**
        * "> " (space) → toggle block.
        *

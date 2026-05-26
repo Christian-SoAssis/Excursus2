@@ -13,20 +13,67 @@ export function ToggleBlockView({ node, updateAttributes, getPos, editor }: Node
     }
   }, []) // intentionally empty — mount only
 
+  // Prevent ProseMirror from stealing focus when the user clicks the title.
+  //
+  // React 17+ dispatches synthetic events at the root *after* native DOM
+  // handlers fire, so `onMouseDown={e => e.stopPropagation()}` is too late —
+  // ProseMirror's listener on `.ProseMirror` already ran and stolen focus.
+  // Attaching a native listener directly to the element fires in the bubble
+  // phase *before* the event reaches `.ProseMirror`, which is what we need.
+  useEffect(() => {
+    const el = titleRef.current
+    if (!el) return
+    const stop = (e: MouseEvent) => e.stopPropagation()
+    el.addEventListener('mousedown', stop)
+    return () => el.removeEventListener('mousedown', stop)
+  }, [])
+
   const toggle = () => updateAttributes({ open: !open })
 
   const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== 'Enter') return
-    e.preventDefault()
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      // Auto-open when entering from the title
+      if (!open) updateAttributes({ open: true })
+      // Move TipTap cursor into the body content
+      const pos = typeof getPos === 'function' ? getPos() : undefined
+      if (pos !== undefined) {
+        // pos+1 = inside the toggleBlock node → TipTap resolves to first text pos
+        editor.chain().focus().setTextSelection(pos + 1).run()
+      }
+      return
+    }
 
-    // Auto-open when entering from the title
-    if (!open) updateAttributes({ open: true })
+    // Backspace on an empty title → delete the entire toggle block
+    if (e.key === 'Backspace' && !titleRef.current?.textContent) {
+      e.preventDefault()
+      const pos = typeof getPos === 'function' ? getPos() : undefined
+      if (pos !== undefined) {
+        editor.chain().focus()
+          .deleteRange({ from: pos, to: pos + node.nodeSize })
+          .run()
+      }
+      return
+    }
 
-    // Move TipTap cursor into the body content
-    const pos = typeof getPos === 'function' ? getPos() : undefined
-    if (pos !== undefined) {
-      // pos+1 = inside the toggleBlock node → TipTap resolves to first text pos
-      editor.chain().focus().setTextSelection(pos + 1).run()
+    // ArrowUp / Shift+Tab from the title → move cursor to preceding content
+    if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+      e.preventDefault()
+      const pos = typeof getPos === 'function' ? getPos() : undefined
+      if (pos !== undefined && pos > 0) {
+        editor.chain().focus().setTextSelection(pos).run()
+      }
+      return
+    }
+
+    // Tab from title → move into toggle body (same as Enter)
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault()
+      if (!open) updateAttributes({ open: true })
+      const pos = typeof getPos === 'function' ? getPos() : undefined
+      if (pos !== undefined) {
+        editor.chain().focus().setTextSelection(pos + 1).run()
+      }
     }
   }
 
@@ -35,10 +82,12 @@ export function ToggleBlockView({ node, updateAttributes, getPos, editor }: Node
       <div className="tgl">
 
         {/* ── Header (always visible) ── */}
-        <div className="tgl__header">
+        {/* contentEditable={false} tells ProseMirror to skip this area entirely.
+            The .tgl__title div with its own contentEditable becomes a native
+            editable island that the browser manages independently. */}
+        <div className="tgl__header" contentEditable={false}>
           <button
             className={`tgl__arrow${open ? ' tgl__arrow--open' : ''}`}
-            contentEditable={false}
             onClick={toggle}
             aria-label={open ? 'Recolher' : 'Expandir'}
             title={open ? 'Recolher' : 'Expandir'}

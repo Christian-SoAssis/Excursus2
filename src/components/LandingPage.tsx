@@ -459,6 +459,9 @@ export function LandingPage() {
               <p className="land-footer__copy land-footer__small">
                 * Excursus é gratuito durante o período de beta. Funcionalidades premium podem ser introduzidas no futuro.
               </p>
+              <p className="land-footer__copy land-footer__small">
+                <a href="/privacidade" className="land-footer__link">Política de Privacidade</a>
+              </p>
             </div>
           </div>
         </footer>

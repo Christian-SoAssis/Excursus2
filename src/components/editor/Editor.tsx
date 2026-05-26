@@ -47,6 +47,8 @@ export function Editor({ noteId }: EditorProps) {
   const loadedRef = useRef<string | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const pdfInputRef = useRef<HTMLInputElement>(null)
+  // Gate: suggestions only fire after the user has typed something in this document
+  const hasInteractedRef = useRef(false)
 
   const [backlinkPos, setBacklinkPos] = useState<{ x: number; y: number } | null>(null)
   const [backlinkQuery, setBacklinkQuery] = useState('')
@@ -58,6 +60,10 @@ export function Editor({ noteId }: EditorProps) {
     debounce((content: JSONContent) => {
       if (!note) return
       saveNoteContent(noteId, note.title, note.folder, content)
+      // Only run similarity suggestions after the user has interacted with the document
+      if (hasInteractedRef.current) {
+        useSuggestionsStore.getState().fetch(noteId, content)
+      }
     }, 800),
     [noteId, note?.title, note?.folder]
   )
@@ -97,6 +103,20 @@ export function Editor({ noteId }: EditorProps) {
   useEffect(() => {
     registerEditor(editor)
     return () => { registerEditor(null) }
+  }, [editor])
+
+  // Reset interaction flag whenever the user switches to a different note
+  useEffect(() => {
+    hasInteractedRef.current = false
+  }, [noteId])
+
+  // Mark the first user keystroke in this document session
+  useEffect(() => {
+    const dom = editor?.view.dom
+    if (!dom) return
+    const onKey = () => { hasInteractedRef.current = true }
+    dom.addEventListener('keydown', onKey)
+    return () => dom.removeEventListener('keydown', onKey)
   }, [editor])
 
   function checkPopovers(ed: ReturnType<typeof useEditor>) {
