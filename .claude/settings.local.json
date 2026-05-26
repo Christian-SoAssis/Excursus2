@@ -33,7 +33,11 @@
       "PowerShell(Get-Command java -ErrorAction SilentlyContinue)",
       "PowerShell(java -version 2>&1)",
       "PowerShell($env:JAVA_HOME)",
-      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\chris\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\ndk\\\\29.0.13846066\\\\toolchains\\\\llvm\\\\prebuilt\\\\windows-x86_64\\\\bin\" | Where-Object { $_.Name -match \"^\\(armv7a|aarch64|i686|x86_64\\)-linux-android\\(eabi\\)?21-clang\\\\.cmd$\" } | Select-Object Name | Sort-Object Name)"
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\chris\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\ndk\\\\29.0.13846066\\\\toolchains\\\\llvm\\\\prebuilt\\\\windows-x86_64\\\\bin\" | Where-Object { $_.Name -match \"^\\(armv7a|aarch64|i686|x86_64\\)-linux-android\\(eabi\\)?21-clang\\\\.cmd$\" } | Select-Object Name | Sort-Object Name)",
+      "Bash(npx supabase *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
