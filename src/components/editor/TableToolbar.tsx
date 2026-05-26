@@ -13,7 +13,7 @@ export function TableToolbar({ editor }: Props) {
     <BubbleMenu
       editor={editor}
       shouldShow={({ editor: ed }) => ed.isActive('tableCell') || ed.isActive('tableHeader')}
-      tippyOptions={{ placement: 'bottom', offset: [0, 6], zIndex: 50 }}
+      options={{ placement: 'bottom', offset: 6 }}
     >
       <div className="tbl-bar">
         <button className="tbl-bar__btn" onMouseDown={run(() => c().addRowBefore().run())} title="Linha acima">↑ linha</button>
