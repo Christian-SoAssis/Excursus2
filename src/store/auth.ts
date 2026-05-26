@@ -9,6 +9,7 @@ interface AuthStore {
   signIn:        (email: string, password: string) => Promise<string | null>
   signUp:        (email: string, password: string) => Promise<string | null>
   signOut:       () => Promise<void>
+  resetPassword: (email: string) => Promise<string | null>
   deleteAccount: () => Promise<void>
   updateAvatar:  (file: File) => Promise<void>
 }
@@ -36,6 +37,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     if (error) return error.message
     if (data.user && !data.session) return 'check_email'
     return null
+  },
+
+  resetPassword: async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}`,
+    })
+    return error?.message ?? null
   },
 
   signOut: async () => {
