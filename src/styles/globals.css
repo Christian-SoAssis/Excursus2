@@ -2313,12 +2313,12 @@ input, textarea { font: inherit; color: inherit; }
 .zen__empty-hint { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-faint); }
 
 /* Floating — pasta seletor */
-.floating__folder-row { position: relative; margin-bottom: 24px; }
+.floating__folder-row { position: relative; display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
 .floating__folder-pill {
   font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-faint); padding: 3px 10px; border-radius: 999px;
   border: 1px solid var(--border-subtle); background: var(--bg-elevated);
-  transition: all .15s var(--ease); display: flex; align-items: center; gap: 5px;
+  transition: all .15s var(--ease); display: inline-flex; align-items: center; gap: 5px;
 }
 .floating__folder-pill:hover { color: var(--text-secondary); border-color: var(--border-default); }
 .floating__folder-dropdown,
