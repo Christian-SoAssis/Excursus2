@@ -15,6 +15,54 @@ function extractText(node: unknown, limit = 140): string {
   return out.slice(0, limit).trim()
 }
 
+// ─── Convex hull helpers (for cluster view) ──────────────────────────────────
+type Pt = { x: number; y: number }
+const cross = (O: Pt, A: Pt, B: Pt) => (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x)
+
+function convexHull(pts: Pt[]): Pt[] {
+  if (pts.length < 3) return pts
+  const s = [...pts].sort((a, b) => a.x - b.x || a.y - b.y)
+  const lower: Pt[] = []
+  for (const p of s) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p) }
+  const upper: Pt[] = []
+  for (let i = s.length - 1; i >= 0; i--) { const p = s[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p) }
+  upper.pop(); lower.pop()
+  return lower.concat(upper)
+}
+
+function expandHull(hull: Pt[], pad: number): Pt[] {
+  const cx = hull.reduce((s, p) => s + p.x, 0) / hull.length
+  const cy = hull.reduce((s, p) => s + p.y, 0) / hull.length
+  return hull.map(p => {
+    const dx = p.x - cx, dy = p.y - cy, dist = Math.hypot(dx, dy) || 1
+    return { x: p.x + dx / dist * pad, y: p.y + dy / dist * pad }
+  })
+}
+
+function hullToPath(hull: Pt[]): string {
+  if (!hull.length) return ''
+  return `M ${hull[0].x.toFixed(1)} ${hull[0].y.toFixed(1)} ` +
+    hull.slice(1).map(p => `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z'
+}
+
+// ─── BFS shortest-path ─────────────────────────────────────────────────────────
+function bfsPath(start: string, end: string, edgePairs: [string, string][]): string[] | null {
+  if (start === end) return [start]
+  const queue: string[][] = [[start]]
+  const visited = new Set([start])
+  while (queue.length) {
+    const path = queue.shift()!; const last = path[path.length - 1]
+    for (const [a, b] of edgePairs) {
+      const nxt = a === last ? b : b === last ? a : null
+      if (!nxt || visited.has(nxt)) continue
+      const newPath = [...path, nxt]
+      if (nxt === end) return newPath
+      visited.add(nxt); queue.push(newPath)
+    }
+  }
+  return null
+}
+
 // ─── Folder colours ────────────────────────────────────────────────────────────
 // Preset colours for built-in folders; unknown folders get auto-assigned from palette.
 const PRESET_COLORS: Record<string, string> = {
@@ -120,6 +168,14 @@ export function GraphMode() {
   // Focus mode — hides everything except the selected node and its neighbours
   const [focusMode, setFocusMode] = useState(false)
 
+  // Cluster view — convex-hull backgrounds per folder
+  const [showClusters, setShowClusters] = useState(false)
+
+  // Shortest-path mode
+  const [pathMode,  setPathMode]  = useState(false)
+  const [pathStart, setPathStart] = useState<string | null>(null)
+  const [pathEnd,   setPathEnd]   = useState<string | null>(null)
+
   // Physics knobs
   const [kRep,    setKRep]    = useState(9000)
   const [springL, setSpringL] = useState(130)
@@ -171,12 +227,16 @@ export function GraphMode() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simNodes.length, size.w, size.h, kRep, springL, pinnedIds])
 
-  // ── ESC exits focus mode ──
+  // ── ESC exits focus / path mode ──
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape' && focusMode) setFocusMode(false) }
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (focusMode) setFocusMode(false)
+      if (pathMode)  { setPathMode(false); setPathStart(null); setPathEnd(null) }
+    }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [focusMode])
+  }, [focusMode, pathMode])
 
   // ── Memos ──
   const edgePairs = useMemo<[string, string][]>(
@@ -288,6 +348,44 @@ export function GraphMode() {
 
   const visibleCount = simNodes.filter(n => { const info = infoByNodeId[n.id]; return info && isVisible(info) }).length
 
+  // ── Cluster hulls ──
+  const clusterHulls = useMemo(() => {
+    if (!showClusters) return []
+    return folders.list.map(folder => {
+      const nodes = simNodes.filter(n => { const info = infoByNodeId[n.id]; return info?.folder === folder && isVisible(info) })
+      if (!nodes.length) return null
+      let pts: Pt[] = nodes.map(n => ({ x: n.x, y: n.y }))
+      if (pts.length < 3) {
+        // Create a minimal polygon around the point(s)
+        const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length
+        const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length
+        pts = [{ x: cx - 60, y: cy - 60 }, { x: cx + 60, y: cy - 60 }, { x: cx + 60, y: cy + 60 }, { x: cx - 60, y: cy + 60 }]
+      }
+      const hull = convexHull(pts)
+      const expanded = expandHull(hull, 55)
+      return { folder, path: hullToPath(expanded), color: colorOf(folder) }
+    }).filter((h): h is { folder: string; path: string; color: string } => h !== null)
+  }, [showClusters, simNodes, infoByNodeId, folders.list, isVisible, colorOf])
+
+  // ── Shortest path ──
+  const shortestPath = useMemo<string[] | null>(
+    () => pathStart && pathEnd ? bfsPath(pathStart, pathEnd, edgePairs) : null,
+    [pathStart, pathEnd, edgePairs]
+  )
+  const shortestPathSet  = useMemo(() => new Set(shortestPath ?? []), [shortestPath])
+  const shortestEdgeSet  = useMemo(() => {
+    if (!shortestPath) return new Set<string>()
+    const s = new Set<string>()
+    for (let i = 0; i < shortestPath.length - 1; i++) {
+      s.add(`${shortestPath[i]}:${shortestPath[i + 1]}`)
+      s.add(`${shortestPath[i + 1]}:${shortestPath[i]}`)
+    }
+    return s
+  }, [shortestPath])
+
+  const pathStartNote = pathStart ? graphData.nodes.find(n => n.id === pathStart) : null
+  const pathEndNote   = pathEnd   ? graphData.nodes.find(n => n.id === pathEnd)   : null
+
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="graph">
@@ -333,6 +431,28 @@ export function GraphMode() {
             rótulos
           </button>
 
+          {/* Cluster view */}
+          <button
+            className="graph__chip"
+            data-active={showClusters || undefined}
+            onClick={() => setShowClusters(c => !c)}
+            title="Mostrar agrupamento por pasta"
+          >
+            clusters
+          </button>
+
+          {/* Shortest path */}
+          <button
+            className="graph__chip"
+            data-active={pathMode || undefined}
+            onClick={() => { setPathMode(m => !m); if (pathMode) { setPathStart(null); setPathEnd(null) } }}
+            title="Encontrar caminho mais curto entre dois nós"
+          >
+            {pathMode && pathStart && pathEnd && shortestPath
+              ? `caminho (${shortestPath.length})`
+              : 'caminho'}
+          </button>
+
           {/* Min degree */}
           <label className="graph__slider" title="Mostrar apenas notas com pelo menos N conexões">
             <span>min grau</span>
@@ -365,13 +485,39 @@ export function GraphMode() {
           </div>
         )}
 
+        {/* Shortest-path banner */}
+        {pathMode && (
+          <div className="graph__focus-banner graph__path-banner">
+            {!pathStart
+              ? <span>🛤 Clique no <b>nó de origem</b></span>
+              : !pathEnd
+              ? <span>🛤 Origem: <b>{pathStartNote?.title ?? pathStart}</b> · clique no <b>destino</b></span>
+              : shortestPath
+              ? <span>🛤 <b>{pathStartNote?.title}</b> → <b>{pathEndNote?.title}</b> · {shortestPath.length - 1} salto{shortestPath.length !== 2 ? 's' : ''}</span>
+              : <span>🛤 <b>{pathStartNote?.title}</b> → <b>{pathEndNote?.title}</b> · sem caminho</span>
+            }
+            {pathStart && (
+              <button style={{ marginLeft: 4 }} onClick={() => { setPathStart(null); setPathEnd(null) }}>↺ reiniciar</button>
+            )}
+            <button onClick={() => { setPathMode(false); setPathStart(null); setPathEnd(null) }}>ESC · sair</button>
+          </div>
+        )}
+
         <svg ref={svgRef} className="graph__svg" width={size.w} height={size.h}>
           <defs>
             <radialGradient id="node-glow" cx="50%" cy="50%" r="50%">
               <stop offset="0%"   stopColor="var(--accent-terracotta)" stopOpacity="0.35" />
               <stop offset="100%" stopColor="var(--accent-terracotta)" stopOpacity="0"    />
             </radialGradient>
+            <filter id="cluster-blur" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="22" />
+            </filter>
           </defs>
+
+          {/* ── Cluster hulls (background, per folder) ── */}
+          {clusterHulls.map(({ folder, path: hullPath, color }) => (
+            <path key={folder} d={hullPath} fill={color} opacity="0.1" filter="url(#cluster-blur)" />
+          ))}
 
           {/* ── Edges ── */}
           {edgePairs.map(([a, b], i) => {
@@ -379,9 +525,20 @@ export function GraphMode() {
             if (!A || !B) return null
 
             // In focus mode: hide edges not connected to focused node
-            if (focusMode) {
-              if (!neighborSet.has(a) || !neighborSet.has(b)) return null
-            }
+            if (focusMode && (!neighborSet.has(a) || !neighborSet.has(b))) return null
+
+            // Shortest path highlighting
+            const onPath = shortestEdgeSet.has(`${a}:${b}`)
+            if (pathMode && pathStart && pathEnd && !onPath) return (
+              <line key={i} x1={A.x} y1={A.y} x2={B.x} y2={B.y}
+                stroke="var(--border-strong)" strokeWidth={1} strokeOpacity={0.06} />
+            )
+            if (onPath) return (
+              <g key={i}>
+                <line x1={A.x} y1={A.y} x2={B.x} y2={B.y} stroke="var(--accent-emerald)" strokeWidth={10} strokeOpacity={0.1} />
+                <line x1={A.x} y1={A.y} x2={B.x} y2={B.y} stroke="var(--accent-emerald)" strokeWidth={2.5} strokeOpacity={0.7} />
+              </g>
+            )
 
             const dim = !focusMode && !!focusedId && !(neighborSet.has(a) && neighborSet.has(b))
             const hot = !!focusedId && (a === focusedId || b === focusedId)
@@ -422,23 +579,44 @@ export function GraphMode() {
             const deg        = degree[n.id] || 0
             const r          = 8 + Math.min(10, deg * 2.2)
 
-            const isPinned = pinnedIds.has(n.id)
+            const isPinned  = pinnedIds.has(n.id)
+            const isPathSrc = pathStart === n.id
+            const isPathDst = pathEnd   === n.id
+            const isOnPath  = shortestPathSet.has(n.id)
+            // In path mode, dim everything not on the path (once a path is found)
+            const pathDim = pathMode && pathStart && pathEnd && shortestPath && !isOnPath
+            const effectiveDim = pathDim || dim
+
             return (
               <g key={n.id} transform={`translate(${n.x},${n.y})`}
-                style={{ cursor: 'pointer', opacity: dim ? 0.15 : 1, transition: 'opacity .2s' }}
-                onMouseEnter={() => onNodeEnter(n.id, n.x, n.y)}
-                onMouseLeave={onNodeLeave}
-                onClick={() => { setSelected(n.id); setPanelOpen(true) }}
-                onDoubleClick={() => togglePin(n.id)}
-                onMouseDown={e => onNodeDown(e, n.id)}
+                style={{ cursor: pathMode ? 'crosshair' : 'pointer', opacity: effectiveDim ? 0.12 : 1, transition: 'opacity .2s' }}
+                onMouseEnter={() => !pathMode && onNodeEnter(n.id, n.x, n.y)}
+                onMouseLeave={() => !pathMode && onNodeLeave()}
+                onClick={() => {
+                  if (pathMode) {
+                    if (!pathStart) { setPathStart(n.id) }
+                    else if (n.id !== pathStart && !pathEnd) { setPathEnd(n.id) }
+                    else { setPathStart(n.id); setPathEnd(null) }
+                  } else {
+                    setSelected(n.id); setPanelOpen(true)
+                  }
+                }}
+                onDoubleClick={() => !pathMode && togglePin(n.id)}
+                onMouseDown={e => !pathMode && onNodeDown(e, n.id)}
               >
                 {/* Glow halos */}
                 <circle r={r * 3.2} fill={color} opacity={isFocus ? 0.07  : 0.03} />
                 <circle r={r * 2}   fill={color} opacity={isFocus ? 0.12  : 0.05} />
                 <circle r={r * 1.4} fill={color} opacity={isFocus ? 0.18  : 0.09} />
                 {isFocus && <circle r={r + 9} fill="none" stroke={color} strokeWidth="1.2" opacity="0.4" />}
+                {/* Path mode: source ring (emerald), destination ring (amber), on-path ring (electric) */}
+                {isPathSrc && <circle r={r + 8} fill="none" stroke="var(--accent-emerald)" strokeWidth="2" opacity="0.85" />}
+                {isPathDst && <circle r={r + 8} fill="none" stroke="var(--accent-amber)"   strokeWidth="2" opacity="0.85" />}
+                {isOnPath && !isPathSrc && !isPathDst && <circle r={r + 6} fill="none" stroke="var(--accent-electric)" strokeWidth="1.5" opacity="0.6" />}
                 {/* Body */}
-                <circle r={r} fill="var(--bg-elevated)" stroke={color} strokeWidth={isSelected ? 2.5 : 1.5} />
+                <circle r={r} fill="var(--bg-elevated)" stroke={
+                  isPathSrc ? 'var(--accent-emerald)' : isPathDst ? 'var(--accent-amber)' : color
+                } strokeWidth={isSelected || isPathSrc || isPathDst ? 2.5 : 1.5} />
                 {isSelected && <circle r={r - 3} fill={color} opacity="0.75" />}
                 {/* Pin indicator */}
                 {isPinned && (
@@ -448,8 +626,8 @@ export function GraphMode() {
                 {showLabels && (
                   <text textAnchor="middle" dy={r + 15}
                     fontFamily="var(--font-sans)" fontSize="11"
-                    fill={isFocus ? 'var(--text-primary)' : 'var(--text-secondary)'}
-                    style={{ pointerEvents: 'none', fontWeight: isSelected ? 500 : 400 }}>
+                    fill={isFocus || isOnPath ? 'var(--text-primary)' : 'var(--text-secondary)'}
+                    style={{ pointerEvents: 'none', fontWeight: isSelected || isOnPath ? 600 : 400 }}>
                     {info.title.length > 22 ? info.title.slice(0, 22) + '…' : info.title}
                   </text>
                 )}
