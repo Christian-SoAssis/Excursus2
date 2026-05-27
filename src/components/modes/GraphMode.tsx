@@ -503,7 +503,14 @@ export function GraphMode() {
           </div>
         )}
 
-        <svg ref={svgRef} className="graph__svg" width={size.w} height={size.h}>
+        <svg ref={svgRef} className="graph__svg" width={size.w} height={size.h}
+          onClick={() => {
+            // Clicks on nodes call e.stopPropagation(), so only background clicks reach here
+            setSelected(null)
+            setPanelOpen(false)
+            setFocusMode(false)
+          }}
+        >
           <defs>
             <radialGradient id="node-glow" cx="50%" cy="50%" r="50%">
               <stop offset="0%"   stopColor="var(--accent-terracotta)" stopOpacity="0.35" />
@@ -514,12 +521,14 @@ export function GraphMode() {
             </filter>
           </defs>
 
-          {/* ── Cluster hulls (background, per folder) ── */}
+          {/* ── Cluster hulls (background, per folder) — non-interactive ── */}
           {clusterHulls.map(({ folder, path: hullPath, color }) => (
-            <path key={folder} d={hullPath} fill={color} opacity="0.1" filter="url(#cluster-blur)" />
+            <path key={folder} d={hullPath} fill={color} opacity="0.1"
+              filter="url(#cluster-blur)" style={{ pointerEvents: 'none' }} />
           ))}
 
-          {/* ── Edges ── */}
+          {/* ── Edges (non-interactive — clicks pass through to SVG background) ── */}
+          <g style={{ pointerEvents: 'none' }}>
           {edgePairs.map(([a, b], i) => {
             const A = nodeById[a], B = nodeById[b]
             if (!A || !B) return null
@@ -561,6 +570,7 @@ export function GraphMode() {
               </g>
             )
           })}
+          </g>{/* end edges group */}
 
           {/* ── Nodes ── */}
           {simNodes.map(n => {
@@ -592,7 +602,8 @@ export function GraphMode() {
                 style={{ cursor: pathMode ? 'crosshair' : 'pointer', opacity: effectiveDim ? 0.12 : 1, transition: 'opacity .2s' }}
                 onMouseEnter={() => !pathMode && onNodeEnter(n.id, n.x, n.y)}
                 onMouseLeave={() => !pathMode && onNodeLeave()}
-                onClick={() => {
+                onClick={e => {
+                  e.stopPropagation()
                   if (pathMode) {
                     if (!pathStart) { setPathStart(n.id) }
                     else if (n.id !== pathStart && !pathEnd) { setPathEnd(n.id) }
