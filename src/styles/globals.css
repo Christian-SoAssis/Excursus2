@@ -786,6 +786,7 @@ input, textarea { font: inherit; color: inherit; }
 
 /* Drag bar — not in prototype but required for drag UX */
 .spatial__node__bar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -858,6 +859,82 @@ input, textarea { font: inherit; color: inherit; }
   transition: background .15s var(--ease), color .15s var(--ease);
 }
 .spatial__zoom-flow:hover { background: var(--bg-surface); color: var(--text-primary); }
+.spatial__zoom-flow--active {
+  background: rgb(var(--accent-terracotta-rgb) / 0.12);
+  color: var(--accent-terracotta);
+}
+.spatial__zoom-flow--active:hover {
+  background: rgb(var(--accent-terracotta-rgb) / 0.2);
+}
+
+/* Node selected state (lasso) */
+.spatial__node--selected {
+  outline: 2px solid var(--accent-electric);
+  outline-offset: 2px;
+}
+
+/* Lasso rect (lives inside canvas → auto-scales with zoom) */
+.spatial__lasso {
+  position: absolute;
+  border: 1.5px dashed var(--accent-electric);
+  background: rgb(var(--accent-electric-rgb) / 0.06);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Card colour button in node bar */
+.spatial__node__bar-color {
+  flex-shrink: 0;
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  transition: background .15s;
+  position: relative;
+}
+.spatial__node__bar-color:hover { background: var(--bg-surface); }
+.spatial__node__bar-color-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  display: block;
+  border: 1px solid var(--border-strong);
+}
+
+/* Colour picker popup */
+.spatial__color-picker {
+  position: absolute;
+  top: calc(100% + 4px); right: 28px;
+  z-index: 60;
+  display: flex; gap: 5px; padding: 6px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+}
+.spatial__color-swatch {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform .1s, box-shadow .1s;
+  flex-shrink: 0;
+}
+.spatial__color-swatch:hover { transform: scale(1.2); }
+.spatial__color-swatch[data-active] {
+  box-shadow: 0 0 0 2px var(--bg-elevated), 0 0 0 3.5px var(--text-primary);
+}
+
+/* Minimap */
+.spatial__minimap {
+  position: absolute;
+  bottom: 20px; right: 20px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  z-index: 20;
+}
 
 /* Folder filter bar */
 .spatial__filterbar {
@@ -1167,6 +1244,57 @@ input, textarea { font: inherit; color: inherit; }
 }
 .graph__focus-banner button:hover {
   background: rgb(var(--accent-terracotta-rgb) / 0.18);
+}
+
+/* Hover tooltip */
+.graph__tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 30;
+  transform: translate(18px, -50%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 10px 14px;
+  min-width: 180px;
+  max-width: 260px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.graph__tooltip-title {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.graph__tooltip-folder {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.graph__tooltip-text {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.graph__tooltip-meta {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-faint);
+  margin-top: 2px;
+  letter-spacing: 0.03em;
 }
 
 /* =================================================================

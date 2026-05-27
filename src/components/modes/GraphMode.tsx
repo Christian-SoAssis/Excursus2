@@ -2,6 +2,19 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useNotesStore } from '../../store/notes'
 import { getGraph, type GraphData, type GraphNode } from '../../lib/db'
 
+/** Extract plain text from TipTap JSON (for hover preview) */
+function extractText(node: unknown, limit = 140): string {
+  if (!node || typeof node !== 'object') return ''
+  let out = ''
+  const walk = (n: Record<string, unknown>) => {
+    if (out.length >= limit) return
+    if (n['type'] === 'text') { out += (n['text'] as string) ?? ''; return }
+    if (Array.isArray(n['content'])) (n['content'] as Record<string, unknown>[]).forEach(walk)
+  }
+  walk(node as Record<string, unknown>)
+  return out.slice(0, limit).trim()
+}
+
 // ─── Folder colours ────────────────────────────────────────────────────────────
 // Preset colours for built-in folders; unknown folders get auto-assigned from palette.
 const PRESET_COLORS: Record<string, string> = {
@@ -39,6 +52,7 @@ function step(
   mouse: { x: number; y: number } | null,
   kRep: number,
   springL: number,
+  pinnedIds: Set<string>,
 ): SimNode[] {
   const K_SPRING = 0.018, K_CENTER = 0.0035, DAMP = 0.82
   const next  = nodes.map(n => ({ ...n }))
@@ -70,6 +84,7 @@ function step(
   // Integrate
   for (const n of next) {
     if (n.id === dragId && mouse) { n.x = mouse.x; n.y = mouse.y; n.vx = 0; n.vy = 0; continue }
+    if (pinnedIds.has(n.id))      { n.vx = 0; n.vy = 0; continue }   // pinned: freeze in place
     n.vx *= DAMP; n.vy *= DAMP
     n.x = Math.max(60, Math.min(w - 60, n.x + n.vx))
     n.y = Math.max(60, Math.min(h - 60, n.y + n.vy))
@@ -87,10 +102,13 @@ export function GraphMode() {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] })
   const [simNodes,  setSimNodes]  = useState<SimNode[]>([])
 
-  // Selection / hover
-  const [selected,  setSelected]  = useState<string | null>(null)
-  const [hovered,   setHovered]   = useState<string | null>(null)
-  const [panelOpen, setPanelOpen] = useState(false)
+  // Selection / hover / pin
+  const [selected,   setSelected]   = useState<string | null>(null)
+  const [hovered,    setHovered]    = useState<string | null>(null)
+  const [panelOpen,  setPanelOpen]  = useState(false)
+  const [pinnedIds,  setPinnedIds]  = useState<Set<string>>(new Set())
+  const [tooltip,    setTooltip]    = useState<{ id: string; x: number; y: number } | null>(null)
+  const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Filters
   const [search,      setSearch]      = useState('')
@@ -144,14 +162,14 @@ export function GraphMode() {
     if (!simNodes.length) return
     let raf: number
     const run = () => {
-      setSimNodes(ns => step(ns, edgePairs, size.w, size.h, dragRef.current.id, dragRef.current.mouse, kRep, springL))
+      setSimNodes(ns => step(ns, edgePairs, size.w, size.h, dragRef.current.id, dragRef.current.mouse, kRep, springL, pinnedIds))
       tick(t => t + 1)
       raf = requestAnimationFrame(run)
     }
     raf = requestAnimationFrame(run)
     return () => cancelAnimationFrame(raf)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [simNodes.length, size.w, size.h, kRep, springL])
+  }, [simNodes.length, size.w, size.h, kRep, springL, pinnedIds])
 
   // ── ESC exits focus mode ──
   useEffect(() => {
@@ -213,6 +231,34 @@ export function GraphMode() {
     if (hideOrphans && (degree[n.id] || 0) === 0) return false
     return true
   }, [filter, search, minDeg, hideOrphans, degree])
+
+  // ── Pin toggle ──
+  const togglePin = useCallback((id: string) => {
+    setPinnedIds(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }, [])
+
+  // ── Hover tooltip ──
+  const onNodeEnter = useCallback((id: string, x: number, y: number) => {
+    setHovered(id)
+    if (tooltipTimer.current) clearTimeout(tooltipTimer.current)
+    tooltipTimer.current = setTimeout(() => setTooltip({ id, x, y }), 450)
+  }, [])
+
+  const onNodeLeave = useCallback(() => {
+    setHovered(null)
+    setTooltip(null)
+    if (tooltipTimer.current) clearTimeout(tooltipTimer.current)
+  }, [])
+
+  // Note text for tooltip preview (extract from contentCache or notes content)
+  const noteTextMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    notes.forEach(n => {
+      const raw = (n as unknown as Record<string, unknown>)['content']
+      if (raw) map[n.id] = extractText(raw)
+    })
+    return map
+  }, [notes])
 
   // ── Drag ──
   const onNodeDown = (e: React.MouseEvent, id: string) => {
@@ -376,12 +422,14 @@ export function GraphMode() {
             const deg        = degree[n.id] || 0
             const r          = 8 + Math.min(10, deg * 2.2)
 
+            const isPinned = pinnedIds.has(n.id)
             return (
               <g key={n.id} transform={`translate(${n.x},${n.y})`}
                 style={{ cursor: 'pointer', opacity: dim ? 0.15 : 1, transition: 'opacity .2s' }}
-                onMouseEnter={() => setHovered(n.id)}
-                onMouseLeave={() => setHovered(null)}
+                onMouseEnter={() => onNodeEnter(n.id, n.x, n.y)}
+                onMouseLeave={onNodeLeave}
                 onClick={() => { setSelected(n.id); setPanelOpen(true) }}
+                onDoubleClick={() => togglePin(n.id)}
                 onMouseDown={e => onNodeDown(e, n.id)}
               >
                 {/* Glow halos */}
@@ -392,6 +440,10 @@ export function GraphMode() {
                 {/* Body */}
                 <circle r={r} fill="var(--bg-elevated)" stroke={color} strokeWidth={isSelected ? 2.5 : 1.5} />
                 {isSelected && <circle r={r - 3} fill={color} opacity="0.75" />}
+                {/* Pin indicator */}
+                {isPinned && (
+                  <circle cx={0} cy={-r - 6} r={3.5} fill={color} opacity={0.9} />
+                )}
                 {/* Label */}
                 {showLabels && (
                   <text textAnchor="middle" dy={r + 15}
@@ -405,6 +457,23 @@ export function GraphMode() {
             )
           })}
         </svg>
+
+        {/* ── Hover tooltip ── */}
+        {tooltip && (() => {
+          const tInfo = infoByNodeId[tooltip.id]
+          if (!tInfo) return null
+          const tText = noteTextMap[tooltip.id] ?? ''
+          return (
+            <div className="graph__tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
+              <div className="graph__tooltip-title">{tInfo.title}</div>
+              <div className="graph__tooltip-folder" style={{ color: colorOf(tInfo.folder) }}>
+                {FOLDER_LABEL[tInfo.folder] ?? tInfo.folder}
+              </div>
+              {tText && <div className="graph__tooltip-text">{tText}</div>}
+              <div className="graph__tooltip-meta">{degree[tooltip.id] || 0} conexões · duplo-clique para fixar</div>
+            </div>
+          )
+        })()}
 
         {/* ── Legend ── */}
         <div className="graph__legend">
@@ -467,6 +536,15 @@ export function GraphMode() {
 
             <div className="graph__panel-section">
               <div className="graph__panel-section-title">Ações</div>
+              {/* Pin toggle */}
+              <button
+                className="graph__panel-link"
+                onClick={() => togglePin(selNote.id)}
+                style={pinnedIds.has(selNote.id) ? { color: 'var(--accent-electric)' } : undefined}
+              >
+                <span>📌</span>
+                <span>{pinnedIds.has(selNote.id) ? 'Desafixar nó' : 'Fixar nó'}</span>
+              </button>
               {/* Focus mode toggle */}
               <button
                 className="graph__panel-link"
