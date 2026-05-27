@@ -1,8 +1,5 @@
 import type { JSONContent } from '@tiptap/react'
 
-const WEEKDAYS = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado']
-const MONTHS   = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
-
 /** Returns today's key string, e.g. "05/06/2026" */
 export function dailyTitle(): string {
   const d = new Date()
@@ -15,36 +12,22 @@ export function dailyTitle(): string {
 
 /** Pre-filled TipTap JSON content for the daily note template */
 export function dailyContent(): JSONContent {
-  const d     = new Date()
-  const label = `${WEEKDAYS[d.getDay()]}, ${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`
+  const h3 = (text: string) => ({
+    type: 'heading' as const, attrs: { level: 3 },
+    content: [{ type: 'text' as const, text }],
+  })
+  const p = () => ({ type: 'paragraph' as const })
+  const ti = () => ({ type: 'taskItem' as const, attrs: { checked: false }, content: [p()] })
+
   return {
     type: 'doc',
     content: [
-      {
-        type: 'heading', attrs: { level: 2 },
-        content: [{ type: 'text', text: `📅 ${label}` }],
-      },
-      {
-        type: 'heading', attrs: { level: 3 },
-        content: [{ type: 'text', text: 'Foco do dia' }],
-      },
-      {
-        type: 'taskList',
-        content: [
-          { type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph' }] },
-          { type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph' }] },
-        ],
-      },
-      {
-        type: 'heading', attrs: { level: 3 },
-        content: [{ type: 'text', text: 'Notas rápidas' }],
-      },
-      { type: 'paragraph' },
-      {
-        type: 'heading', attrs: { level: 3 },
-        content: [{ type: 'text', text: 'Reflexão' }],
-      },
-      { type: 'paragraph' },
+      h3('Foco do dia'),
+      { type: 'taskList', content: [ti(), ti()] },
+      h3('Notas rápidas'),
+      p(),
+      h3('Reflexão'),
+      p(),
     ],
   }
 }

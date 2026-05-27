@@ -12,28 +12,26 @@ export interface NoteTemplate {
 }
 
 // ── Helper builders ───────────────────────────────────────────────
-const h = (level: 1 | 2 | 3, text: string): JSONContent => ({
-  type: 'heading', attrs: { level },
+const h3 = (text: string): JSONContent => ({
+  type: 'heading', attrs: { level: 3 },
   content: [{ type: 'text', text }],
 })
-const p  = (text?: string): JSONContent =>
+const p = (text?: string): JSONContent =>
   text
     ? { type: 'paragraph', content: [{ type: 'text', text }] }
     : { type: 'paragraph' }
 
-const li  = (text?: string): JSONContent => ({
+const li = (text?: string): JSONContent => ({
   type: 'listItem',
   content: [text ? p(text) : p()],
 })
-const oli  = (text?: string): JSONContent => li(text)
-const ti  = (text?: string): JSONContent => ({
+const ti = (text?: string): JSONContent => ({
   type: 'taskItem', attrs: { checked: false },
   content: [text ? p(text) : p()],
 })
-const ul  = (...items: JSONContent[]): JSONContent => ({ type: 'bulletList',   content: items })
-const ol  = (...items: JSONContent[]): JSONContent => ({ type: 'orderedList',  content: items })
-const tl  = (...items: JSONContent[]): JSONContent => ({ type: 'taskList',     content: items })
-const hr  = (): JSONContent => ({ type: 'horizontalRule' })
+const ul = (...items: JSONContent[]): JSONContent => ({ type: 'bulletList',  content: items })
+const ol = (...items: JSONContent[]): JSONContent => ({ type: 'orderedList', content: items })
+const tl = (...items: JSONContent[]): JSONContent => ({ type: 'taskList',    content: items })
 
 // ── Built-in templates ────────────────────────────────────────────
 export const NOTE_TEMPLATES: NoteTemplate[] = [
@@ -45,7 +43,7 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     content: { type: 'doc', content: [p()] },
   },
 
-  // 2. Reunião
+  // 2. Reunião — sem heading duplicado; metadados como parágrafo inicial
   {
     id: 'meeting', label: 'Reunião', icon: '◎',
     desc: 'Pauta, notas e próximos passos',
@@ -53,15 +51,14 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     content: {
       type: 'doc',
       content: [
-        h(2, 'Reunião'),
         p('📅 Data:   |   👥 Participantes:'),
-        h(3, 'Pauta'),
-        ol(oli(), oli(), oli()),
-        h(3, 'Notas'),
+        h3('Pauta'),
+        ol(li(), li(), li()),
+        h3('Notas'),
         p(),
-        h(3, 'Decisões'),
+        h3('Decisões'),
         ul(li(), li()),
-        h(3, 'Próximos passos'),
+        h3('Próximos passos'),
         tl(ti(), ti(), ti()),
       ],
     },
@@ -75,17 +72,14 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     content: {
       type: 'doc',
       content: [
-        h(2, 'Projeto'),
-        h(3, 'Objetivo'),
-        p('O que queremos alcançar e por quê.'),
-        h(3, 'Contexto'),
+        h3('Objetivo'),
         p(),
-        h(3, 'Tarefas'),
+        h3('Contexto'),
+        p(),
+        h3('Tarefas'),
         tl(ti('Definir escopo'), ti('Alinhar stakeholders'), ti()),
-        h(3, 'Referências'),
+        h3('Referências'),
         ul(li()),
-        hr(),
-        p('Criado em: ' + new Date().toLocaleDateString('pt-BR')),
       ],
     },
   },
@@ -98,16 +92,15 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     content: {
       type: 'doc',
       content: [
-        h(2, 'Pesquisa'),
-        h(3, 'Pergunta principal'),
+        h3('Pergunta principal'),
         p(),
-        h(3, 'Hipótese'),
+        h3('Hipótese'),
         p(),
-        h(3, 'O que já sei'),
+        h3('O que já sei'),
         ul(li(), li()),
-        h(3, 'Fontes'),
-        ol(oli(), oli()),
-        h(3, 'Conclusões'),
+        h3('Fontes'),
+        ol(li(), li()),
+        h3('Conclusões'),
         p(),
       ],
     },
@@ -121,14 +114,13 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     content: {
       type: 'doc',
       content: [
-        h(2, '✎ ' + new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })),
-        h(3, 'Humor'),
+        h3('Humor'),
         p(),
-        h(3, 'O que aconteceu'),
+        h3('O que aconteceu'),
         p(),
-        h(3, 'Gratidão'),
+        h3('Gratidão'),
         ul(li(), li(), li()),
-        h(3, 'Reflexão'),
+        h3('Reflexão'),
         p(),
       ],
     },
