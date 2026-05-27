@@ -4,15 +4,19 @@ import { getActiveEditor } from '../../lib/editorRegistry'
 
 /* ── Score bar ─────────────────────────────────────────────────── */
 function ScoreBar({ score }: { score: number }) {
-  const pct = Math.round(score * 100)
-  const hue = Math.round(score * 40) // 0 → orange-ish, 1 → yellow-ish
+  const pct   = Math.round(score * 100)
+  const color = score >= 0.60
+    ? 'var(--accent-emerald)'
+    : score >= 0.30
+    ? 'var(--accent-amber)'
+    : 'var(--accent-terracotta)'
+
   return (
     <div className="sg-score" title={`${pct}% de similaridade`}>
-      <div
-        className="sg-score__bar"
-        style={{ width: `${pct}%`, background: `hsl(${25 + hue}, 80%, 60%)` }}
-      />
-      <span className="sg-score__label">{pct}%</span>
+      <div className="sg-score__track">
+        <div className="sg-score__fill" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <span className="sg-score__label" style={{ color }}>{pct}%</span>
     </div>
   )
 }
@@ -22,6 +26,9 @@ export function SuggestionsPanel() {
   const { items, loading, visible, noResults, dismiss, dismissAll, hide, show, markLinked } =
     useSuggestionsStore()
   const autoHideRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Only show items with at least 20 % similarity
+  const visibleItems = items.filter(item => item.score >= 0.20)
 
   // Auto-hide after 12 s of no interaction
   useEffect(() => {
@@ -69,7 +76,7 @@ export function SuggestionsPanel() {
   }
 
   // Nothing to show
-  if (items.length === 0 && !loading && !noResults) return null
+  if (visibleItems.length === 0 && !loading && !noResults) return null
 
   return (
     <div
@@ -78,10 +85,10 @@ export function SuggestionsPanel() {
       onMouseLeave={resetTimer}
     >
       {/* ── Collapsed pill ── */}
-      {!visible && items.length > 0 && (
+      {!visible && visibleItems.length > 0 && (
         <button className="sg-pill" onClick={show}>
           <span className="sg-pill__dot" />
-          {items.length} {items.length === 1 ? 'conexão sugerida' : 'conexões sugeridas'}
+          {visibleItems.length} {visibleItems.length === 1 ? 'conexão sugerida' : 'conexões sugeridas'}
           <span className="sg-pill__arrow">▲</span>
         </button>
       )}
@@ -110,7 +117,7 @@ export function SuggestionsPanel() {
           )}
 
           <ul className="sg-list">
-            {items.map(item => (
+            {visibleItems.map(item => (
               <li key={item.id} className="sg-item">
                 <div className="sg-item__top">
                   <span className="sg-item__title" title={item.title}>

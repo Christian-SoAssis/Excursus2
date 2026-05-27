@@ -202,20 +202,31 @@
   margin-bottom: 8px;
 }
 
-.sg-score__bar {
+/* Full-width track (always visible, subtle background) */
+.sg-score__track {
   flex: 1;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--accent-electric);
-  transition: width 0.4s var(--ease);
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+
+/* Coloured fill — width + color set inline by ScoreBar */
+.sg-score__fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.45s var(--ease), background-color 0.3s var(--ease);
 }
 
 .sg-score__label {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--text-faint);
+  /* color is set inline to match the fill colour */
   letter-spacing: 0.04em;
   flex-shrink: 0;
+  transition: color 0.3s var(--ease);
+  min-width: 3ch;
+  text-align: right;
 }
 
 /* ── Actions ── */

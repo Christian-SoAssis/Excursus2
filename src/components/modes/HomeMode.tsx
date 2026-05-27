@@ -7,6 +7,8 @@ import type { Habit, Task, TaskPriority, ReflectStore } from '../../lib/homeData
 import { connectGoogleCalendar, disconnectGoogleCalendar, isConnected } from '../../lib/googleAuth'
 import { fetchTodayEvents, createEvent, updateEventSummary, deleteEvent } from '../../lib/googleCalendar'
 import type { CalendarEvent } from '../../lib/googleCalendar'
+import { openOrCreateDailyNote } from '../../lib/dailyNote'
+import { WritingStatsCard } from '../ui/WritingStatsCard'
 
 /* ── date helpers ── */
 const getToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
@@ -971,9 +973,16 @@ export function HomeMode() {
         <div className="hm-metrics">
           <Heatmap habits={habits} filter={heatFilter} setFilter={setHeatFilter}/>
           <ConsistencyChart habits={habits}/>
+          <WritingStatsCard />
         </div>
 
         <div className="hm-quick">
+          <div className="hm-quick__link hm-quick__link--accent" style={{ cursor: 'pointer' }}
+            onClick={() => openOrCreateDailyNote()}>
+            <div className="hm-quick__link-eyebrow">📅 abrir</div>
+            <div className="hm-quick__link-title">Nota <em>de hoje</em></div>
+            <div className="hm-quick__link-sub">cria ou abre a nota diária</div>
+          </div>
           <div className="hm-quick__link">
             <div className="hm-quick__link-eyebrow">↳ continuar</div>
             <div className="hm-quick__link-title">Editor <em>de notas</em></div>

@@ -17,6 +17,8 @@ import { LandingPage } from './components/LandingPage'
 import { ResetPasswordPage } from './components/auth/ResetPasswordPage'
 import { TutorialOverlay } from './components/tutorial/TutorialOverlay'
 import { SuggestionsPanel } from './components/ui/SuggestionsPanel'
+import { CommandPalette } from './components/ui/CommandPalette'
+import { TemplateModal } from './components/ui/TemplateModal'
 import { MobileHeader } from './components/mobile/MobileHeader'
 import { MobileNav } from './components/mobile/MobileNav'
 import { MobileNotesMode } from './components/mobile/MobileNotesMode'
@@ -29,7 +31,9 @@ import { usePlatform } from './hooks/usePlatform'
 import { supabaseConfigured } from './lib/supabase'
 
 export function App() {
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsOpen,   setSettingsOpen]   = useState(false)
+  const [paletteOpen,    setPaletteOpen]    = useState(false)
+  const [templatesOpen,  setTemplatesOpen]  = useState(false)
   const { isMobile } = usePlatform()
   const { mode, setMode, theme, accent, fontScale, uiFont, showHandles } = useUIStore()
   const loadNotes = useNotesStore(s => s.loadNotes)
@@ -68,6 +72,38 @@ export function App() {
     }
     return cleanup
   }, [user])
+
+  // ── Global keyboard shortcuts ──────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey
+      if (!meta) return
+
+      // Cmd+K — toggle command palette (always fires, even when typing)
+      if (e.key === 'k') {
+        e.preventDefault()
+        setPaletteOpen(v => !v)
+        return
+      }
+
+      // Mode / note shortcuts — skip when the user is typing in an input
+      const target  = e.target as HTMLElement
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+      if (isInput) return
+
+      const { createNote, setActiveNote } = useNotesStore.getState()
+      const { setMode: sm } = useUIStore.getState()
+
+      if (e.key === 'n') { e.preventDefault(); createNote().then(id => { setActiveNote(id); sm('floating') }); return }
+      if (e.key === '1') { e.preventDefault(); sm('home');     return }
+      if (e.key === '2') { e.preventDefault(); sm('floating'); return }
+      if (e.key === '3') { e.preventDefault(); sm('spatial');  return }
+      if (e.key === '4') { e.preventDefault(); sm('graph');    return }
+      if (e.key === '5') { e.preventDefault(); sm('ai');       return }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, []) // uses .getState() — no deps needed
 
   useEffect(() => {
     const ACCENT_MAP = {
@@ -151,6 +187,8 @@ export function App() {
         <main className="mob-stage">{renderMobileMode()}</main>
         <MobileNav onOpenSettings={() => setSettingsOpen(true)} />
         <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onOpenTemplates={() => { setPaletteOpen(false); setTemplatesOpen(true) }} />
+        <TemplateModal open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
         <Toaster position="top-center" />
       </>
     )
@@ -164,6 +202,8 @@ export function App() {
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <TutorialOverlay />
       {mode !== 'spatial' && <SuggestionsPanel />}
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onOpenTemplates={() => { setPaletteOpen(false); setTemplatesOpen(true) }} />
+      <TemplateModal open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
       <Toaster position="bottom-right" />
     </>
   )
