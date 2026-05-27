@@ -13,7 +13,7 @@ export function dailyTitle(): string {
 /** Pre-filled TipTap JSON content for the daily note template */
 export function dailyContent(): JSONContent {
   const h3 = (text: string) => ({
-    type: 'heading' as const, attrs: { level: 3 },
+    type: 'heading' as const, attrs: { level: 3},
     content: [{ type: 'text' as const, text }],
   })
   const p = () => ({ type: 'paragraph' as const })

@@ -37,7 +37,11 @@
       "Bash(npx supabase *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(sed -n '185,200p' src/styles/globals.css)",
+      "Bash(sed -n '1390,1410p' src/styles/globals.css)",
+      "Bash(xargs grep -l \"habit\\\\|Habit\")",
+      "Bash(git restore *)"
     ]
   }
 }
