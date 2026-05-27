@@ -10,6 +10,7 @@ import TaskList from '@tiptap/extension-task-list'
 import { CustomTaskItem } from './extensions/CustomTaskItem'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { BacklinkExtension } from './extensions/BacklinkExtension'
 import { MathBlock } from './extensions/MathBlock'
 import { CalloutBlock } from './extensions/CalloutBlock'
@@ -174,8 +175,36 @@ export function Editor({ noteId }: EditorProps) {
     })
   }, [noteId, editor])
 
+  // ── Drag & drop ──────────────────────────────────────────────────
+  const [dragging, setDragging] = useState(false)
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setDragging(false)
+    if (!user || !editor) return
+    const files = Array.from(e.dataTransfer.files)
+    for (const file of files) {
+      try {
+        const url = await uploadFile(user.id, file)
+        if (file.type.startsWith('image/')) {
+          editor.chain().focus().setImage({ src: url, alt: file.name }).run()
+        } else if (file.type === 'application/pdf') {
+          editor.chain().focus().insertContent({ type: 'pdfBlock', attrs: { src: url, name: file.name } }).run()
+        }
+      } catch {
+        toast.error(`Erro ao fazer upload de ${file.name}`)
+      }
+    }
+  }
+
   return (
-    <div className="editor-wrap">
+    <div
+      className={`editor-wrap${dragging ? ' editor-wrap--dragging' : ''}`}
+      onDragOver={e => { e.preventDefault(); setDragging(true) }}
+      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false) }}
+      onDrop={handleDrop}
+    >
+      {dragging && <div className="editor-drop-overlay">Solte para inserir</div>}
       <FormatToolbar editor={editor} noteId={noteId} />
       <TableToolbar editor={editor} />
       <EditorContent editor={editor} className="doc" />

@@ -9,6 +9,9 @@ interface SyncStore {
   pendingCount: number
   homeSyncing: boolean
   homePending: boolean
+  lastSyncedAt: number | null   // timestamp ms of last successful full drain
+  offlineSince:  number | null  // timestamp ms when offline started
+  failedIds: string[]           // ids that failed on last drain attempt
   setOnline: (v: boolean) => void
   setPendingCount: (n: number) => void
   setHomeSyncing: (v: boolean) => void
@@ -23,6 +26,9 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   pendingCount: loadQueue().length,
   homeSyncing: false,
   homePending: false,
+  lastSyncedAt: null,
+  offlineSince:  null,
+  failedIds: [],
 
   setOnline: (online) => set({ online }),
   setPendingCount: (pendingCount) => set({ pendingCount }),
@@ -30,9 +36,16 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   setHomePending: (homePending) => set({ homePending }),
 
   initNetworkWatcher: () => {
-    set({ online: navigator.onLine })
-    const onOnline  = () => { set({ online: true });  get().drainQueue() }
-    const onOffline = () => set({ online: false })
+    const isOnline = navigator.onLine
+    set({
+      online: isOnline,
+      offlineSince: isOnline ? null : Date.now(),
+    })
+    const onOnline  = () => {
+      set({ online: true, offlineSince: null })
+      get().drainQueue()
+    }
+    const onOffline = () => set({ online: false, offlineSince: Date.now() })
     window.addEventListener('online',  onOnline)
     window.addEventListener('offline', onOffline)
     return () => {
@@ -46,7 +59,9 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     const queue = loadQueue()
     if (queue.length === 0) return
 
-    set({ syncing: true })
+    set({ syncing: true, failedIds: [] })
+    const newFailed: string[] = []
+
     for (const mutation of queue) {
       try {
         const { id, kind, snapshot } = mutation
@@ -64,18 +79,31 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
         } else if (kind === 'move') {
           await moveNote(id, snapshot.posX, snapshot.posY)
         } else {
-          // save
           await saveNote({ id, title: snapshot.title, folder: snapshot.folder, content: snapshot.content })
         }
         removeFromQueue(id)
         set(s => ({ pendingCount: Math.max(0, s.pendingCount - 1) }))
-      } catch {
-        // still offline or server error — stop draining, retry on next online event
-        break
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : ''
+        // 409 conflict: remove from queue (last-write-wins — local already applied)
+        if (msg.includes('409') || msg.includes('conflict') || msg.includes('duplicate')) {
+          removeFromQueue(mutation.id)
+          set(s => ({ pendingCount: Math.max(0, s.pendingCount - 1) }))
+        } else {
+          // Network/server error — stop, retry later
+          newFailed.push(mutation.id)
+          break
+        }
       }
     }
 
-    set({ syncing: false })
+    const remaining = loadQueue().length
+    set({
+      syncing: false,
+      failedIds: newFailed,
+      pendingCount: remaining,
+      ...(remaining === 0 && newFailed.length === 0 ? { lastSyncedAt: Date.now() } : {}),
+    })
 
     // prune stale content cache entries
     try {

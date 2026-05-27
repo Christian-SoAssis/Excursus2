@@ -8,6 +8,7 @@ import {
   AI_MODELS, modelProvider,
 } from '../../lib/ai-providers'
 import type { AICallConfig } from '../../lib/ai-providers'
+import { searchNotesLocally, type NoteSearchResult } from '../../lib/notesSearch'
 import { Editor } from '../editor/Editor'
 import { Sidebar } from '../Sidebar'
 
@@ -164,6 +165,104 @@ function SetupScreen({ onConfigured }: { onConfigured: () => void }) {
   )
 }
 
+/* ── Notes RAG search tab ─────────────────────────────────────────── */
+const RAG_SYSTEM =
+  'Você é um assistente que responde perguntas baseadas exclusivamente nas notas do usuário. ' +
+  'Cite o título da nota fonte entre colchetes quando usar informação dela. ' +
+  'Se as notas não contiverem a resposta, diga isso claramente. ' +
+  'Responda no idioma da pergunta.'
+
+function NotesSearchTab({ cfg }: { cfg: AICallConfig }) {
+  const { notes, contentCache } = useNotesStore()
+  const { loading, setLoading, addAnnotation } = useAiStore()
+
+  const [query,   setQuery]   = useState('')
+  const [results, setResults] = useState<NoteSearchResult[]>([])
+  const [answer,  setAnswer]  = useState<string | null>(null)
+  const [searched, setSearched] = useState(false)
+
+  const search = async () => {
+    if (!query.trim() || loading) return
+
+    const hits = searchNotesLocally(query, notes, contentCache, 5)
+    setResults(hits)
+    setSearched(true)
+    setAnswer(null)
+
+    if (hits.length === 0) return
+
+    // Build context for the LLM
+    const context = hits
+      .map(h => `### [${h.title}] (${h.folder})\n${h.excerpt}`)
+      .join('\n\n---\n\n')
+
+    const userMsg =
+      `Notas relevantes encontradas:\n\n${context}\n\n---\n\nPergunta: ${query}`
+
+    setLoading(true)
+    try {
+      const text = await runAI(cfg, RAG_SYSTEM, userMsg)
+      setAnswer(text)
+      addAnnotation(`RAG: ${query.slice(0, 40)}`, text)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao chamar a IA')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="ai-rag">
+      <div className="ai-rag__header">
+        <p className="ai-rag__desc">
+          Pesquise nas suas notas em linguagem natural. A IA lê as mais relevantes e responde.
+        </p>
+      </div>
+
+      <div className="ai-rag__input-row">
+        <input
+          className="ai-rag__input"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && search()}
+          placeholder='Ex.: "o que escrevi sobre produtividade?" ou "quais reuniões tive em maio?"'
+          disabled={loading}
+          autoFocus
+        />
+        <button className="ai-mode__prompt-send" onClick={search} disabled={loading || !query.trim()}>
+          {loading ? '…' : 'Pesquisar →'}
+        </button>
+      </div>
+
+      {searched && results.length === 0 && !loading && (
+        <p className="ai-rag__empty">Nenhuma nota encontrada para "{query}".</p>
+      )}
+
+      {results.length > 0 && (
+        <div className="ai-rag__results">
+          <div className="ai-rag__sources">
+            <span className="ai-rag__sources-label">Fontes</span>
+            {results.map(r => (
+              <span key={r.id} className="ai-rag__source-chip" title={r.excerpt}>
+                {r.title}
+              </span>
+            ))}
+          </div>
+
+          {answer && (
+            <div className="ai-rag__answer">
+              <span className="ai-rag__answer-label">Resposta</span>
+              <p>{answer}</p>
+            </div>
+          )}
+
+          {loading && <p className="ai-note--loading">Lendo notas e gerando resposta…</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ── Main mode ────────────────────────────────────────────────────── */
 export function AiMode() {
   const { notes, activeNoteId, contentCache } = useNotesStore()
@@ -181,6 +280,7 @@ export function AiMode() {
   const [prompt,       setPrompt]  = useState('')
   const [actions,      setActions] = useState<SelectionAction | null>(null)
   const [configured,   setConfigured] = useState(false)
+  const [aiTab,        setAiTab]   = useState<'note' | 'search'>('note')
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Determina se o provedor atual tem chave configurada
@@ -288,72 +388,94 @@ export function AiMode() {
     <div className="ai-mode">
       <Sidebar />
 
-      <div className="ai-mode__body">
-        <div className="ai-mode__row">
-          <div className="ai-mode__doc doc">
-            {note ? <Editor noteId={note.id} /> : (
-              <div style={{ color: 'var(--text-faint)', padding: '40px 0' }}>
-                Selecione uma nota no painel lateral
+      {/* ── Tab switcher ── */}
+      <div className="ai-mode__tabs">
+        <button
+          className={`ai-mode__tab${aiTab === 'note' ? ' ai-mode__tab--active' : ''}`}
+          onClick={() => setAiTab('note')}>
+          ✎ Nota atual
+        </button>
+        <button
+          className={`ai-mode__tab${aiTab === 'search' ? ' ai-mode__tab--active' : ''}`}
+          onClick={() => setAiTab('search')}>
+          ⌕ Pesquisar nas notas
+        </button>
+      </div>
+
+      {aiTab === 'search' ? (
+        <div className="ai-mode__body">
+          <NotesSearchTab cfg={cfg} />
+        </div>
+      ) : (
+        <>
+          <div className="ai-mode__body">
+            <div className="ai-mode__row">
+              <div className="ai-mode__doc doc">
+                {note ? <Editor noteId={note.id} /> : (
+                  <div style={{ color: 'var(--text-faint)', padding: '40px 0' }}>
+                    Selecione uma nota no painel lateral
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="ai-mode__margin">
-            <div className="ai-mode__margin-header">
-              <span>IA · {activeModelMeta?.label ?? selectedModel} · {annotations.length}</span>
-              {annotations.length > 0 && (
-                <button className="ai-mode__margin-clear" onClick={clearAnnotations}>Limpar</button>
-              )}
-            </div>
-
-            {loading && <div className="ai-note--loading">gerando…</div>}
-
-            {annotations.length === 0 && !loading && (
-              <div className="ai-mode__margin-empty">
-                Pergunte ou selecione texto<br />para ver sugestões
-              </div>
-            )}
-
-            {annotations.map(a => (
-              <div key={a.id} className="ai-note" style={{ marginBottom: 12 }}>
-                <button className="ai-note__dismiss" onClick={() => removeAnnotation(a.id)}>×</button>
-                <div className="ai-note__tag">
-                  <span className="ai-note__tag-dot" />
-                  {a.tag}
+              <div className="ai-mode__margin">
+                <div className="ai-mode__margin-header">
+                  <span>IA · {activeModelMeta?.label ?? selectedModel} · {annotations.length}</span>
+                  {annotations.length > 0 && (
+                    <button className="ai-mode__margin-clear" onClick={clearAnnotations}>Limpar</button>
+                  )}
                 </div>
-                <div>{a.body}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      <div className="ai-mode__promptbar">
-        <div className="ai-mode__prompt-input">
-          <svg className="ai-mode__prompt-spark" width="16" height="16" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 3L13.5 9H19.5L14.5 13L16.5 19L12 15L7.5 19L9.5 13L4.5 9H10.5Z"/>
-          </svg>
-          <input ref={inputRef} value={prompt}
-            onChange={e => setPrompt(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && runPrompt()}
-            placeholder='Pergunte ou peça ao documento — "resuma em 3 linhas", "expanda esta seção"...'
-            disabled={loading} />
-          <button className="ai-mode__prompt-send"
-            onClick={runPrompt} disabled={loading || !prompt.trim()}>
-            {loading ? '…' : 'enviar →'}
-          </button>
-        </div>
-        <div className="ai-mode__prompt-chips">
-          {PROMPT_CHIPS.map(chip => (
-            <button key={chip} className="ai-mode__prompt-chip"
-              onClick={() => { setPrompt(chip.replace('· ', '')); inputRef.current?.focus() }}
-              disabled={loading}>
-              {chip}
-            </button>
-          ))}
-        </div>
-      </div>
+                {loading && <div className="ai-note--loading">gerando…</div>}
+
+                {annotations.length === 0 && !loading && (
+                  <div className="ai-mode__margin-empty">
+                    Pergunte ou selecione texto<br />para ver sugestões
+                  </div>
+                )}
+
+                {annotations.map(a => (
+                  <div key={a.id} className="ai-note" style={{ marginBottom: 12 }}>
+                    <button className="ai-note__dismiss" onClick={() => removeAnnotation(a.id)}>×</button>
+                    <div className="ai-note__tag">
+                      <span className="ai-note__tag-dot" />
+                      {a.tag}
+                    </div>
+                    <div>{a.body}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="ai-mode__promptbar">
+            <div className="ai-mode__prompt-input">
+              <svg className="ai-mode__prompt-spark" width="16" height="16" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3L13.5 9H19.5L14.5 13L16.5 19L12 15L7.5 19L9.5 13L4.5 9H10.5Z"/>
+              </svg>
+              <input ref={inputRef} value={prompt}
+                onChange={e => setPrompt(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && runPrompt()}
+                placeholder='Pergunte ou peça ao documento — "resuma em 3 linhas", "expanda esta seção"...'
+                disabled={loading} />
+              <button className="ai-mode__prompt-send"
+                onClick={runPrompt} disabled={loading || !prompt.trim()}>
+                {loading ? '…' : 'enviar →'}
+              </button>
+            </div>
+            <div className="ai-mode__prompt-chips">
+              {PROMPT_CHIPS.map(chip => (
+                <button key={chip} className="ai-mode__prompt-chip"
+                  onClick={() => { setPrompt(chip.replace('· ', '')); inputRef.current?.focus() }}
+                  disabled={loading}>
+                  {chip}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {actions && (
         <div className="ai-actions" style={{ left: actions.x, top: actions.y }}>

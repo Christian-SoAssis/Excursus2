@@ -5,15 +5,24 @@ import { useSyncStore } from '../store/sync'
 import { ExcursusLogo } from './ExcursusLogo'
 
 function SyncPill() {
-  const { online, syncing, pendingCount, homeSyncing, homePending } = useSyncStore()
+  const { online, syncing, pendingCount, homeSyncing, homePending, lastSyncedAt, failedIds } = useSyncStore()
   const anySyncing = syncing || homeSyncing
   const anyPending = pendingCount > 0 || homePending
 
-  if (online && !anySyncing && !anyPending) return null
-  if (!online) return <span className="sync-pill sync-pill--offline">offline</span>
-  if (anySyncing) return <span className="sync-pill sync-pill--syncing">sincronizando…</span>
-  if (pendingCount > 0) return <span className="sync-pill sync-pill--pending">{pendingCount} pendente{pendingCount > 1 ? 's' : ''}</span>
-  return <span className="sync-pill sync-pill--pending">salvando…</span>
+  if (!online) return (
+    <span className="sync-pill sync-pill--offline" title="Sem conexão — alterações salvas localmente">
+      ⚡ offline · {pendingCount > 0 ? `${pendingCount} pendente${pendingCount > 1 ? 's' : ''}` : 'local'}
+    </span>
+  )
+  if (failedIds.length > 0) return (
+    <span className="sync-pill sync-pill--error" title="Erro ao sincronizar — clique para tentar novamente">
+      ⚠ sync error
+    </span>
+  )
+  if (anySyncing) return <span className="sync-pill sync-pill--syncing">⟳ sincronizando…</span>
+  if (anyPending) return <span className="sync-pill sync-pill--pending">{pendingCount} pendente{pendingCount > 1 ? 's' : ''}</span>
+  if (lastSyncedAt) return null   // everything clean — stay silent
+  return null
 }
 
 const MODES = [

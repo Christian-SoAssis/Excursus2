@@ -19,6 +19,8 @@ import { TutorialOverlay } from './components/tutorial/TutorialOverlay'
 import { SuggestionsPanel } from './components/ui/SuggestionsPanel'
 import { CommandPalette } from './components/ui/CommandPalette'
 import { TemplateModal } from './components/ui/TemplateModal'
+import { OfflineBanner } from './components/ui/OfflineBanner'
+import { QuickCaptureModal } from './components/ui/QuickCaptureModal'
 import { MobileHeader } from './components/mobile/MobileHeader'
 import { MobileNav } from './components/mobile/MobileNav'
 import { MobileNotesMode } from './components/mobile/MobileNotesMode'
@@ -34,6 +36,7 @@ export function App() {
   const [settingsOpen,   setSettingsOpen]   = useState(false)
   const [paletteOpen,    setPaletteOpen]    = useState(false)
   const [templatesOpen,  setTemplatesOpen]  = useState(false)
+  const [quickCapOpen,   setQuickCapOpen]   = useState(false)
   const { isMobile } = usePlatform()
   const { mode, setMode, theme, accent, fontScale, uiFont, showHandles } = useUIStore()
   const loadNotes = useNotesStore(s => s.loadNotes)
@@ -73,10 +76,28 @@ export function App() {
     return cleanup
   }, [user])
 
+  // ── Tauri tray event: open quick capture ──────────────────────────
+  useEffect(() => {
+    if (!('__TAURI_INTERNALS__' in window)) return
+    let unlisten: (() => void) | undefined
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      listen('open-quick-capture', () => setQuickCapOpen(true)).then(fn => { unlisten = fn })
+    })
+    return () => { unlisten?.() }
+  }, [])
+
   // ── Global keyboard shortcuts ──────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey
+
+      // Alt+Space — quick capture (works even when typing)
+      if (e.altKey && e.key === ' ') {
+        e.preventDefault()
+        setQuickCapOpen(v => !v)
+        return
+      }
+
       if (!meta) return
 
       // Cmd+K — toggle command palette (always fires, even when typing)
@@ -189,6 +210,7 @@ export function App() {
         <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onOpenTemplates={() => { setPaletteOpen(false); setTemplatesOpen(true) }} />
         <TemplateModal open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
+        <QuickCaptureModal open={quickCapOpen} onClose={() => setQuickCapOpen(false)} />
         <Toaster position="top-center" />
       </>
     )
@@ -197,6 +219,7 @@ export function App() {
   return (
     <>
       <AppBar onOpenSettings={() => setSettingsOpen(true)} />
+      <OfflineBanner />
       <main className="stage">{renderMode()}</main>
       <TweaksPanel onOpen={() => setSettingsOpen(true)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
@@ -204,6 +227,7 @@ export function App() {
       {mode !== 'spatial' && <SuggestionsPanel />}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onOpenTemplates={() => { setPaletteOpen(false); setTemplatesOpen(true) }} />
       <TemplateModal open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
+      <QuickCaptureModal open={quickCapOpen} onClose={() => setQuickCapOpen(false)} />
       <Toaster position="bottom-right" />
     </>
   )

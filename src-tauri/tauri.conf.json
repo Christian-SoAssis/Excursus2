@@ -12,11 +12,16 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Excursus 2",
         "width": 1280,
         "height": 800
       }
     ],
+    "trayIcon": {
+      "iconPath": "icons/32x32.png",
+      "iconAsTemplate": true
+    },
     "security": {
       "csp": "default-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'"
     }
