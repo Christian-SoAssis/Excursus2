@@ -1,6 +1,9 @@
 import type { JSONContent } from '@tiptap/react'
 import { supabase } from './supabase'
 import { newId } from './id'
+import { createLogger } from './logger'
+
+const log = createLogger('db')
 
 export interface Note {
   id: string
@@ -58,7 +61,7 @@ export async function getNotes(): Promise<Note[]> {
     .from('notes')
     .select('id, title, folder, pos_x, pos_y, pos_w, word_count, created_at, updated_at')
     .order('updated_at', { ascending: false })
-  if (error) throw new Error(error.message)
+  if (error) { log.error('getNotes falhou', { error: error.message, code: error.code }); throw new Error(error.message) }
   return (data ?? []).map(mapRow)
 }
 
@@ -68,7 +71,7 @@ export async function getNoteContent(id: string): Promise<string> {
     .select('content')
     .eq('id', id)
     .maybeSingle()
-  if (error) throw new Error(error.message)
+  if (error) { log.error('getNoteContent falhou', { id, error: error.message }); throw new Error(error.message) }
   return data?.content ?? ''
 }
 
@@ -92,7 +95,7 @@ export async function saveNote(params: {
       word_count: wordCount,
       updated_at: new Date().toISOString(),
     })
-  if (error) throw new Error(error.message)
+  if (error) { log.error('saveNote falhou', { id: params.id, error: error.message }); throw new Error(error.message) }
 }
 
 export async function createNote(params: {
@@ -110,7 +113,7 @@ export async function createNote(params: {
       pos_y: params.posY,
       word_count: 0,
     })
-  if (error) throw new Error(error.message)
+  if (error) { log.error('createNote falhou', { error: error.message }); throw new Error(error.message) }
   return id
 }
 
@@ -132,7 +135,7 @@ export async function insertNoteWithId(params: {
 
 export async function deleteNote(id: string): Promise<void> {
   const { error } = await supabase.from('notes').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) { log.error('deleteNote falhou', { id, error: error.message }); throw new Error(error.message) }
 }
 
 export async function moveNote(id: string, posX: number, posY: number): Promise<void> {

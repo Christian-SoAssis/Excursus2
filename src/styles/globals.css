@@ -2112,6 +2112,30 @@ input, textarea { font: inherit; color: inherit; }
   border-color: rgb(var(--accent-terracotta-rgb) / 0.5);
 }
 
+/* ── Botão de logs de diagnóstico ──────────────────────────── */
+.cfg-logs-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s, border-color .15s;
+}
+.cfg-logs-btn:hover {
+  background: var(--bg-glass);
+  border-color: var(--border-default);
+}
+.cfg-logs-btn__icon { font-size: 16px; flex-shrink: 0; }
+.cfg-logs-btn__text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.cfg-logs-btn__label { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+.cfg-logs-btn__hint  { font-size: 11px; color: var(--text-faint); font-family: var(--font-mono); }
+.cfg-logs-btn__arrow { font-size: 18px; color: var(--text-faint); flex-shrink: 0; line-height: 1; }
+
 /* Rows */
 .cfg-row { padding: 8px 0; }
 .cfg-row--inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

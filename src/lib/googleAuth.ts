@@ -13,6 +13,9 @@
  */
 
 import { supabase } from './supabase'
+import { createLogger } from './logger'
+
+const log = createLogger('gcal')
 
 /* ── module-level in-memory token cache (Fix 3: never persisted) ─── */
 let _accessToken: string | null = null
@@ -73,16 +76,30 @@ async function callEdgeFn(body: Record<string, unknown>): Promise<Record<string,
   if (!session) throw new Error('Não autenticado no Supabase')
 
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify(body),
-  })
+  log.debug(`chamando edge function: ${body.action}`, { url })
+
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(body),
+    })
+  } catch (fetchErr) {
+    log.error('falha de rede ao chamar edge function', {
+      action: body.action,
+      url,
+      error: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
+    })
+    throw fetchErr
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
+    log.error(`edge function retornou erro HTTP ${res.status}`, { action: body.action, body: err })
     throw new Error(JSON.stringify(err))
   }
   return res.json()
@@ -97,12 +114,16 @@ export async function getValidAccessToken(): Promise<string> {
 
   // Refresh via Edge Function — refresh_token stays server-side (Fix 1 + Fix 3)
   try {
+    log.info('renovando access token do Google')
     const data = await callEdgeFn({ action: 'refresh' })
     if (!data.access_token) throw new Error('Sem access_token na resposta')
     cacheToken(data.access_token as string, data.expires_at as number)
+    log.info('access token renovado com sucesso')
     return _accessToken!
-  } catch {
-    // Treat any refresh failure as a disconnection so the UI prompts reconnect
+  } catch (err) {
+    log.error('falha ao renovar token — desconectando Google Calendar', {
+      error: err instanceof Error ? err.message : String(err),
+    })
     clearTokens()
     throw new Error('Sessão expirada. Reconecte o Google Calendar.')
   }
@@ -169,17 +190,25 @@ async function connectWeb(): Promise<void> {
   const state        = crypto.randomUUID()          // Fix 2
   sessionStorage.setItem(STATE_KEY, state)
 
+  log.info('iniciando fluxo OAuth web', { clientId: clientId.slice(0, 20) + '…', redirectUri })
+
   const popup = window.open(
     buildAuthUrl(clientId, redirectUri, codeChallenge, state),
     'google-oauth',
     'width=520,height=640,left=200,top=100',
   )
-  if (!popup) throw new Error('Popup bloqueado pelo navegador. Permita popups para este site.')
+  if (!popup) {
+    log.error('popup bloqueado pelo navegador')
+    throw new Error('Popup bloqueado pelo navegador. Permita popups para este site.')
+  }
+
+  log.info('popup aberto, aguardando callback…')
 
   const code = await new Promise<string>((resolve, reject) => {
     const timer = setTimeout(() => {
       popup.close()
       sessionStorage.removeItem(STATE_KEY)
+      log.warn('timeout de autenticação OAuth (5 min)')
       reject(new Error('Timeout de 5 minutos — autenticação não concluída'))
     }, 5 * 60 * 1000)
 
@@ -194,17 +223,27 @@ async function connectWeb(): Promise<void> {
       window.removeEventListener('message', onMessage)
 
       if (!savedState || event.data.state !== savedState) {
+        log.error('falha de segurança: estado OAuth inválido', {
+          expected: savedState?.slice(0, 8) + '…',
+          received: String(event.data.state).slice(0, 8) + '…',
+        })
         reject(new Error('Falha de segurança: estado OAuth inválido'))
         return
       }
-      if (event.data.error) reject(new Error(event.data.error))
-      else resolve(event.data.code as string)
+      if (event.data.error) {
+        log.error('erro retornado pelo popup OAuth', { error: event.data.error })
+        reject(new Error(event.data.error))
+      } else {
+        log.info('código OAuth recebido, iniciando troca…')
+        resolve(event.data.code as string)
+      }
     }
 
     window.addEventListener('message', onMessage)
   })
 
   await exchangeCode(code, codeVerifier, redirectUri)
+  log.info('Google Calendar conectado com sucesso')
 }
 
 /**
@@ -296,7 +335,11 @@ async function connectTauri(): Promise<void> {
 
 export async function connectGoogleCalendar(): Promise<void> {
   const clientId = getClientId()
-  if (!clientId) throw new Error('VITE_GOOGLE_CLIENT_ID não configurado no arquivo .env.local')
+  if (!clientId) {
+    log.error('VITE_GOOGLE_CLIENT_ID não configurado')
+    throw new Error('VITE_GOOGLE_CLIENT_ID não configurado no arquivo .env.local')
+  }
+  log.info(`conectando Google Calendar via ${isTauri() ? 'Tauri' : 'web'}`)
   return isTauri() ? connectTauri() : connectWeb()
 }
 
@@ -305,10 +348,14 @@ export async function connectGoogleCalendar(): Promise<void> {
  * Falls back to clearing local state even if the network call fails.
  */
 export async function disconnectGoogleCalendar(): Promise<void> {
+  log.info('desconectando Google Calendar')
   try {
     await callEdgeFn({ action: 'disconnect' })
-  } catch {
-    // best-effort — always clear local state regardless
+    log.info('tokens revogados no servidor')
+  } catch (err) {
+    log.warn('falha ao revogar tokens no servidor (limpeza local será feita assim mesmo)', {
+      error: err instanceof Error ? err.message : String(err),
+    })
   } finally {
     clearTokens()
   }

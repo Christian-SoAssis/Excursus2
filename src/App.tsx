@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Toaster } from 'sonner'
 import { handleOAuthPopupCallback } from './lib/googleAuth'
+import { installGlobalHandlers } from './lib/logger'
+import { LogViewer } from './components/ui/LogViewer'
 import { applyFont } from './lib/fonts'
 import { AppBar } from './components/AppBar'
 import { FloatingMode } from './components/modes/FloatingMode'
@@ -37,12 +39,16 @@ export function App() {
   const [paletteOpen,    setPaletteOpen]    = useState(false)
   const [templatesOpen,  setTemplatesOpen]  = useState(false)
   const [quickCapOpen,   setQuickCapOpen]   = useState(false)
+  const [logsOpen,       setLogsOpen]       = useState(false)
   const { isMobile } = usePlatform()
   const { mode, setMode, theme, accent, fontScale, uiFont, showHandles } = useUIStore()
   const loadNotes = useNotesStore(s => s.loadNotes)
   const { user, loading, initialize, isRecovering } = useAuthStore()
   const { initNetworkWatcher, drainQueue } = useSyncStore()
   const { hasSeenOnboarding, openTutorial } = useTutorialStore()
+
+  // Instalar captura global de erros não tratados
+  useEffect(() => { installGlobalHandlers() }, [])
 
   // Handle Google OAuth popup callback — must run before any render logic
   useEffect(() => { handleOAuthPopupCallback() }, [])
@@ -104,6 +110,13 @@ export function App() {
       if (e.key === 'k') {
         e.preventDefault()
         setPaletteOpen(v => !v)
+        return
+      }
+
+      // Cmd+Shift+L — toggle log viewer (debug)
+      if (e.shiftKey && e.key === 'L') {
+        e.preventDefault()
+        setLogsOpen(v => !v)
         return
       }
 
@@ -207,10 +220,11 @@ export function App() {
         <MobileHeader />
         <main className="mob-stage">{renderMobileMode()}</main>
         <MobileNav onOpenSettings={() => setSettingsOpen(true)} />
-        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onOpenLogs={() => { setSettingsOpen(false); setLogsOpen(true) }} />
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onOpenTemplates={() => { setPaletteOpen(false); setTemplatesOpen(true) }} />
         <TemplateModal open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
         <QuickCaptureModal open={quickCapOpen} onClose={() => setQuickCapOpen(false)} />
+        {logsOpen && <LogViewer onClose={() => setLogsOpen(false)} />}
         <Toaster position="top-center" />
       </>
     )
@@ -222,12 +236,13 @@ export function App() {
       <OfflineBanner />
       <main className="stage">{renderMode()}</main>
       <TweaksPanel onOpen={() => setSettingsOpen(true)} />
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onOpenLogs={() => { setSettingsOpen(false); setLogsOpen(true) }} />
       <TutorialOverlay />
       {mode !== 'spatial' && <SuggestionsPanel />}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onOpenTemplates={() => { setPaletteOpen(false); setTemplatesOpen(true) }} />
       <TemplateModal open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
       <QuickCaptureModal open={quickCapOpen} onClose={() => setQuickCapOpen(false)} />
+      {logsOpen && <LogViewer onClose={() => setLogsOpen(false)} />}
       <Toaster position="bottom-right" />
     </>
   )

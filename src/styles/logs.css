@@ -1,0 +1,307 @@
+/* =================================================================
+   LogViewer — painel de logs de diagnóstico
+   ================================================================= */
+
+/* ── Overlay ────────────────────────────────────────────────────── */
+.lv-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(4px);
+}
+
+/* ── Painel ─────────────────────────────────────────────────────── */
+.lv-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 1101;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-page);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ── Cabeçalho ──────────────────────────────────────────────────── */
+.lv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.lv-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-title {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.lv-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 99px;
+  padding: 1px 8px;
+}
+
+.lv-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lv-btn {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.lv-btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.lv-btn--ghost:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.lv-btn--danger {
+  background: transparent;
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+.lv-btn--danger:hover {
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.lv-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s, color 0.15s;
+}
+.lv-close:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+/* ── Toolbar de filtros ──────────────────────────────────────────── */
+.lv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.lv-filters {
+  display: flex;
+  gap: 4px;
+}
+
+.lv-filter {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 99px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.lv-filter:hover {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.lv-filter.is-active { border-color: currentColor; }
+
+.lv-filter--all.is-active    { color: var(--text-primary); }
+.lv-filter--info.is-active   { color: #60a5fa; border-color: rgba(96,165,250,0.5); background: rgba(96,165,250,0.08); }
+.lv-filter--warn.is-active   { color: #fbbf24; border-color: rgba(251,191,36,0.5); background: rgba(251,191,36,0.08); }
+.lv-filter--error.is-active  { color: #f87171; border-color: rgba(248,113,113,0.5); background: rgba(248,113,113,0.08); }
+.lv-filter--debug.is-active  { color: var(--text-secondary); border-color: var(--border-default); background: var(--bg-elevated); }
+
+.lv-filter-count {
+  font-size: 10px;
+  opacity: 0.75;
+  min-width: 14px;
+  text-align: center;
+}
+
+.lv-module-select {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 3px 8px;
+  cursor: pointer;
+  max-width: 180px;
+}
+
+.lv-autoscroll {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-left: auto;
+  user-select: none;
+}
+.lv-autoscroll input { cursor: pointer; accent-color: var(--accent-electric); }
+
+/* ── Lista ───────────────────────────────────────────────────────── */
+.lv-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) transparent;
+}
+
+.lv-empty {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-faint);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+/* ── Linha de log ────────────────────────────────────────────────── */
+.lv-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  padding: 3px 16px;
+  border-bottom: 1px solid transparent;
+  line-height: 1.7;
+  transition: background 0.1s;
+}
+
+.lv-row--clickable {
+  cursor: pointer;
+}
+.lv-row--clickable:hover {
+  background: var(--bg-surface);
+}
+
+.lv-row--warn  { background: rgba(251,191,36,0.03); }
+.lv-row--error { background: rgba(248,113,113,0.05); }
+
+.lv-time {
+  color: var(--text-faint);
+  font-size: 10.5px;
+  min-width: 176px;
+  flex-shrink: 0;
+}
+
+.lv-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.lv-badge--debug { color: #777;    background: rgba(119,119,119,0.12); }
+.lv-badge--info  { color: #60a5fa; background: rgba(96,165,250,0.12);  }
+.lv-badge--warn  { color: #fbbf24; background: rgba(251,191,36,0.15);  }
+.lv-badge--error { color: #f87171; background: rgba(248,113,113,0.15); }
+
+.lv-module {
+  color: var(--accent-electric);
+  opacity: 0.7;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.lv-msg {
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.lv-row--error .lv-msg { color: #fca5a5; }
+.lv-row--warn  .lv-msg { color: #fde68a; }
+
+.lv-expand {
+  color: var(--text-faint);
+  font-size: 9px;
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Dados expandidos ────────────────────────────────────────────── */
+.lv-data {
+  width: 100%;
+  margin: 4px 0 4px 182px;
+  padding: 8px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-x: auto;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+/* ── Light theme overrides ──────────────────────────────────────── */
+[data-theme='light'] .lv-badge--debug { color: #888;    background: rgba(0,0,0,0.06); }
+[data-theme='light'] .lv-badge--info  { color: #2563eb; background: rgba(37,99,235,0.1); }
+[data-theme='light'] .lv-badge--warn  { color: #b45309; background: rgba(180,83,9,0.1); }
+[data-theme='light'] .lv-badge--error { color: #dc2626; background: rgba(220,38,38,0.1); }
+
+[data-theme='light'] .lv-module { color: #6d28d9; }
+[data-theme='light'] .lv-msg    { color: var(--text-primary); }
+[data-theme='light'] .lv-row--error .lv-msg { color: #991b1b; }
+[data-theme='light'] .lv-row--warn  .lv-msg { color: #92400e; }
+[data-theme='light'] .lv-filter--info.is-active  { color: #2563eb; border-color: rgba(37,99,235,0.4);  background: rgba(37,99,235,0.06); }
+[data-theme='light'] .lv-filter--warn.is-active  { color: #b45309; border-color: rgba(180,83,9,0.4);   background: rgba(180,83,9,0.06); }
+[data-theme='light'] .lv-filter--error.is-active { color: #dc2626; border-color: rgba(220,38,38,0.4);  background: rgba(220,38,38,0.06); }

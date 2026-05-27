@@ -10,6 +10,7 @@ import './styles/tutorial.css'
 import './styles/suggestions.css'
 import './styles/mobile.css'
 import './styles/gantt.css'
+import './styles/logs.css'
 import 'katex/dist/katex.min.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { createLogger } from '../lib/logger'
 import type { User } from '@supabase/supabase-js'
+
+const log = createLogger('auth')
 
 interface AuthStore {
   user:           User | null
@@ -22,46 +25,63 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isRecovering: false,
 
   initialize: () => {
+    log.info('inicializando sessão')
     supabase.auth.getSession().then(({ data }) => {
-      set({ user: data.session?.user ?? null, loading: false })
+      const user = data.session?.user ?? null
+      log.info('sessão inicial', { userId: user?.id ?? null, hasSession: !!data.session })
+      set({ user, loading: false })
     })
     supabase.auth.onAuthStateChange((event, session) => {
+      log.info(`auth state change: ${event}`, { userId: session?.user?.id ?? null })
       set({ user: session?.user ?? null, loading: false })
       if (event === 'PASSWORD_RECOVERY') {
+        log.info('entrando no modo de recuperação de senha')
         set({ isRecovering: true })
       }
     })
   },
 
   signIn: async (email, password) => {
+    log.info('tentativa de login', { email })
     const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) log.error('falha no login', { email, error: error.message })
+    else       log.info('login bem-sucedido', { email })
     return error?.message ?? null
   },
 
   signUp: async (email, password) => {
+    log.info('tentativa de cadastro', { email })
     const { data, error } = await supabase.auth.signUp({ email, password })
-    if (error) return error.message
-    if (data.user && !data.session) return 'check_email'
+    if (error) { log.error('falha no cadastro', { email, error: error.message }); return error.message }
+    if (data.user && !data.session) { log.info('cadastro pendente — verificar e-mail', { email }); return 'check_email' }
+    log.info('cadastro bem-sucedido', { email })
     return null
   },
 
   resetPassword: async (email) => {
+    log.info('solicitação de reset de senha', { email, redirectTo: window.location.origin })
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}`,
     })
+    if (error) log.error('falha ao enviar reset de senha', { email, error: error.message })
+    else       log.info('e-mail de reset enviado', { email })
     return error?.message ?? null
   },
 
   updatePassword: async (password) => {
+    log.info('atualizando senha')
     const { error } = await supabase.auth.updateUser({ password })
-    if (error) return error.message
+    if (error) { log.error('falha ao atualizar senha', error.message); return error.message }
+    log.info('senha atualizada com sucesso')
     set({ isRecovering: false })
     return null
   },
 
   signOut: async () => {
+    log.info('saindo da conta')
     await supabase.auth.signOut()
     set({ user: null })
+    log.info('sessão encerrada')
   },
 
   /**

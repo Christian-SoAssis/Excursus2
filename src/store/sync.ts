@@ -2,6 +2,9 @@ import { create } from 'zustand'
 import { loadQueue, removeFromQueue } from '../lib/syncQueue'
 import { saveNote, deleteNote, moveNote, insertNoteWithId } from '../lib/db'
 import { pruneContentKeys } from '../lib/localCache'
+import { createLogger } from '../lib/logger'
+
+const log = createLogger('sync')
 
 interface SyncStore {
   online: boolean
@@ -42,10 +45,14 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
       offlineSince: isOnline ? null : Date.now(),
     })
     const onOnline  = () => {
+      log.info('conexão restabelecida — drenando fila')
       set({ online: true, offlineSince: null })
       get().drainQueue()
     }
-    const onOffline = () => set({ online: false, offlineSince: Date.now() })
+    const onOffline = () => {
+      log.warn('conexão perdida')
+      set({ online: false, offlineSince: Date.now() })
+    }
     window.addEventListener('online',  onOnline)
     window.addEventListener('offline', onOffline)
     return () => {
@@ -59,12 +66,14 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     const queue = loadQueue()
     if (queue.length === 0) return
 
+    log.info(`drenando fila: ${queue.length} mutações pendentes`)
     set({ syncing: true, failedIds: [] })
     const newFailed: string[] = []
 
     for (const mutation of queue) {
       try {
         const { id, kind, snapshot } = mutation
+        log.debug(`sincronizando: ${kind} ${id.slice(0, 8)}`)
         if (kind === 'delete') {
           await deleteNote(id)
         } else if (kind === 'create') {
@@ -87,10 +96,14 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
         const msg = err instanceof Error ? err.message : ''
         // 409 conflict: remove from queue (last-write-wins — local already applied)
         if (msg.includes('409') || msg.includes('conflict') || msg.includes('duplicate')) {
+          log.warn(`conflito ignorado (last-write-wins): ${mutation.kind} ${mutation.id.slice(0, 8)}`, { msg })
           removeFromQueue(mutation.id)
           set(s => ({ pendingCount: Math.max(0, s.pendingCount - 1) }))
         } else {
-          // Network/server error — stop, retry later
+          log.error(`falha ao sincronizar: ${mutation.kind} ${mutation.id.slice(0, 8)}`, {
+            error: msg,
+            enqueuedAt: mutation.enqueuedAt,
+          })
           newFailed.push(mutation.id)
           break
         }
@@ -104,6 +117,12 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
       pendingCount: remaining,
       ...(remaining === 0 && newFailed.length === 0 ? { lastSyncedAt: Date.now() } : {}),
     })
+
+    if (newFailed.length === 0 && remaining === 0) {
+      log.info('fila drenada com sucesso')
+    } else {
+      log.warn(`drenagem concluída com pendências`, { remaining, failed: newFailed.length })
+    }
 
     // prune stale content cache entries
     try {

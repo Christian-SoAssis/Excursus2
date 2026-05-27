@@ -374,7 +374,7 @@ function AiKeySection() {
 }
 
 /* ── Main modal ──────────────────────────────────────────────── */
-export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SettingsModal({ open, onClose, onOpenLogs }: { open: boolean; onClose: () => void; onOpenLogs?: () => void }) {
   const {
     theme, accent, fontScale, uiFont, language, showHandles,
     setTheme, setAccent, setFontScale, setUIFont, setLanguage, setShowHandles,
@@ -568,6 +568,26 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
             <SectionLabel>Tutorial & Ajuda</SectionLabel>
             <TutorialSection onOpenTutorial={handleOpenTutorial} />
           </section>
+
+          <div className="cfg-sep" />
+
+          {/* ══ DIAGNÓSTICO ════════════════════════════════════ */}
+          {onOpenLogs && (
+            <>
+              <div className="cfg-sep" />
+              <section className="cfg-section">
+                <SectionLabel>Diagnóstico</SectionLabel>
+                <button className="cfg-logs-btn" onClick={onOpenLogs}>
+                  <span className="cfg-logs-btn__icon">📋</span>
+                  <div className="cfg-logs-btn__text">
+                    <span className="cfg-logs-btn__label">Logs de diagnóstico</span>
+                    <span className="cfg-logs-btn__hint">Ver registros de auth, sync e calendário · Ctrl+Shift+L</span>
+                  </div>
+                  <span className="cfg-logs-btn__arrow">›</span>
+                </button>
+              </section>
+            </>
+          )}
 
           <div className="cfg-sep" />
 
