@@ -1110,7 +1110,7 @@ input, textarea { font: inherit; color: inherit; }
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 .floating .editor-wrap {
-  max-width: 720px; margin: 0 auto; padding: 0 48px 48px;
+  max-width: 720px; margin: 0 auto; padding: 1px 48px 48px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-top: none;
