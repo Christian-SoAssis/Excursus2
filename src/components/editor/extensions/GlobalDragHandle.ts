@@ -2,15 +2,28 @@
  * GlobalDragHandle — ProseMirror plugin that shows a ⠿ drag grip
  * on the left edge of the hovered block.
  *
- * Key fix: mouse-tracking is done on `document`, not `view.dom`.
- * This means the handle stays visible while the cursor moves from
- * inside the editor toward the handle (which lives outside view.dom).
- * The handle only hides when the cursor is far from both the editor
- * AND the handle's current position.
+ * How the drag actually works
+ * ───────────────────────────
+ * The handle lives in document.body (outside view.dom). To make
+ * ProseMirror handle the DnD natively we proxy the handle's
+ * dragstart event onto view.dom with the *same* DataTransfer object.
+ * PM's own dragstart handler then:
+ *   1. sees the NodeSelection we set on mousedown
+ *   2. calls _serializeForClipboard (adds the data-pm-slice metadata
+ *      that PM's drop handler needs to reconstruct the node correctly)
+ *   3. writes to the shared DataTransfer
+ *   4. sets view.dragging with the internal Dragging instance
+ *
+ * Without this proxy, a manual DOMSerializer-based approach produces
+ * HTML that PM treats as an external paste, breaking the drop.
+ *
+ * Grace zone (visibility fix)
+ * ───────────────────────────
+ * Listening on document (not view.dom) keeps the handle visible while
+ * the cursor travels from the editor toward the handle.
  */
 import { Extension } from '@tiptap/core'
 import { Plugin, NodeSelection } from 'prosemirror-state'
-import { DOMSerializer } from 'prosemirror-model'
 import type { EditorView } from 'prosemirror-view'
 import type { Node as PMNode } from 'prosemirror-model'
 
@@ -72,15 +85,14 @@ function makeDragHandlePlugin() {
   let activeView: EditorView | null = null
   let dragging = false
 
-  // Cache the handle's fixed-position coords so we can check proximity
-  // without calling getBoundingClientRect on every mousemove.
+  // Cached position for the grace-zone proximity check
   let hLeft = -999
   let hTop  = -999
-  const H_W = 20   // handle width  (must match CSS)
-  const H_H = 24   // handle height (must match CSS)
-  const GRACE = 28 // px of grace zone around the handle
+  const H_W    = 20   // handle width  (matches CSS)
+  const H_H    = 24   // handle height (matches CSS)
+  const GRACE  = 28   // px grace zone around the handle
 
-  function isNearHandle(x: number, y: number): boolean {
+  function isNearHandle(x: number, y: number) {
     return (
       x >= hLeft - GRACE && x <= hLeft + H_W + GRACE &&
       y >= hTop  - GRACE && y <= hTop  + H_H + GRACE
@@ -97,6 +109,10 @@ function makeDragHandlePlugin() {
     handle.textContent = '⠿'
     document.body.appendChild(handle)
 
+    /* ── mousedown: select the target node ────────────────────────
+       e.preventDefault() stops the editor from blurring, but we
+       dispatch the NodeSelection transaction immediately so the
+       selection is updated before dragstart fires.             */
     handle.addEventListener('mousedown', (e) => {
       e.preventDefault()
       if (!activeView || activePos < 0) return
@@ -106,30 +122,27 @@ function makeDragHandlePlugin() {
       } catch { /* node may not support NodeSelection */ }
     })
 
+    /* ── dragstart: proxy onto view.dom ───────────────────────────
+       By dispatching onto view.dom with the *same* DataTransfer,
+       ProseMirror's native dragstart handler runs, serializes the
+       NodeSelection properly (data-pm-slice attribute included),
+       and sets view.dragging with its internal Dragging object.  */
     handle.addEventListener('dragstart', (e) => {
       if (!activeView || activePos < 0 || !e.dataTransfer) return
       dragging = true
-      const { state } = activeView
-      const slice = state.selection.content()
 
-      const container = document.createElement('div')
-      DOMSerializer
-        .fromSchema(state.schema)
-        .serializeFragment(slice.content, { document }, container)
-
-      e.dataTransfer.clearData()
-      e.dataTransfer.setData('text/html', container.innerHTML)
-      e.dataTransfer.setData(
-        'text/plain',
-        slice.content.textBetween(0, slice.content.size, '\n'),
+      activeView.dom.dispatchEvent(
+        new DragEvent('dragstart', {
+          bubbles: false,   // don't re-bubble to avoid loops
+          cancelable: true,
+          dataTransfer: e.dataTransfer,  // shared reference — PM writes to this
+          clientX: e.clientX,
+          clientY: e.clientY,
+        }),
       )
-      e.dataTransfer.effectAllowed = 'move'
-      ;(activeView as unknown as Record<string, unknown>).dragging = {
-        slice,
-        move: true,
-      }
     })
 
+    /* ── dragend: clean up view.dragging if drop was cancelled ──── */
     handle.addEventListener('dragend', () => {
       dragging = false
       if (activeView) {
@@ -145,11 +158,8 @@ function makeDragHandlePlugin() {
       activeView = view
       const h = getHandle()
 
-      // ── Global mouse tracking ────────────────────────────────────
-      // Listening on `document` (not view.dom) means the handler
-      // fires even while the cursor is in the strip between the
-      // editor's left edge and the handle, so the handle never
-      // disappears prematurely.
+      /* Listen on document so the handle stays visible while the
+         cursor travels from the editor toward the handle element. */
       const onDocMouseMove = (e: MouseEvent) => {
         if (dragging) return
 
@@ -159,7 +169,6 @@ function makeDragHandlePlugin() {
           e.clientY >= rect.top  && e.clientY <= rect.bottom
 
         if (inEditor) {
-          // Update handle to track the hovered block
           const target = resolveTarget(view, e.clientX, e.clientY)
           if (!target) { h.style.display = 'none'; return }
 
@@ -168,7 +177,6 @@ function makeDragHandlePlugin() {
 
           const domRect = domEl.getBoundingClientRect()
           activePos = target.pos
-
           hLeft = domRect.left - 26
           hTop  = domRect.top  + 4
 
@@ -178,8 +186,7 @@ function makeDragHandlePlugin() {
           return
         }
 
-        // Outside editor — hide only if the cursor is not in the
-        // grace zone around the handle's last known position.
+        // Outside the editor — only hide when far from the handle
         if (h.style.display !== 'none' && !isNearHandle(e.clientX, e.clientY)) {
           h.style.display = 'none'
         }
