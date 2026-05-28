@@ -12,6 +12,8 @@ const SLASH_ITEMS: SlashItem[] = [
   { type: 'h2',        label: 'Título médio',    desc: 'Heading 2',              kbd: '##' },
   { type: 'h3',        label: 'Título pequeno',  desc: 'Heading 3',              kbd: '###' },
   { type: 'p',         label: 'Parágrafo',       desc: 'Texto corrido',          kbd: '' },
+  { type: '2col',      label: '2 Colunas',       desc: 'Layout lado a lado',     kbd: '' },
+  { type: '3col',      label: '3 Colunas',       desc: 'Layout em três colunas', kbd: '' },
   { type: 'todo',      label: 'Tarefa',          desc: 'Checkbox + texto',       kbd: '[ ]' },
   { type: 'list',      label: 'Lista',           desc: 'Marcadores',             kbd: '-' },
   { type: 'quote',     label: 'Citação',         desc: 'Bloco destacado',        kbd: '>' },

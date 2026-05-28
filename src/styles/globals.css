@@ -566,6 +566,103 @@ input, textarea { font: inherit; color: inherit; }
   outline: 2px solid var(--accent-electric); outline-offset: 2px;
 }
 
+/* =================================================================
+   Column layout (ColumnList + Column nodes)
+================================================================= */
+
+/* Outer wrapper — provides margin and position context */
+.cl-wrap {
+  margin: 10px 0;
+  display: block;
+}
+
+/* NodeViewContent becomes the flex row of columns */
+.cl-row {
+  display: flex !important;
+  gap: 14px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* Footer: "+ coluna" and "↓ bloco abaixo" controls */
+.cl-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity .18s;
+}
+.cl-wrap:hover .cl-footer { opacity: 1; }
+
+.cl-btn {
+  font-size: 11px;
+  color: var(--text-faint);
+  background: none;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: color .12s, border-color .12s;
+  white-space: nowrap;
+}
+.cl-btn:hover { color: var(--text-muted); border-color: var(--border-default); }
+.cl-btn--exit:hover { color: var(--accent-terracotta); border-color: var(--accent-terracotta); }
+
+.cl-meta {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  margin-left: auto;
+}
+
+/* ── Single column ──────────────────────────────────────────────── */
+.col {
+  flex: 1;
+  min-width: 0;        /* prevents text overflow from expanding the column */
+  position: relative;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px 8px;
+  transition: border-color .15s;
+  box-sizing: border-box;
+}
+.col:focus-within { border-color: var(--border-default); }
+
+/* Toolbar — delete button, appears on hover */
+.col__toolbar {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 5;
+}
+.col:hover .col__toolbar { opacity: 1; }
+
+.col__del {
+  font-size: 12px;
+  line-height: 1;
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+  color: var(--text-faint);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: color .12s, border-color .12s;
+}
+.col__del:hover { color: var(--accent-terracotta); border-color: var(--accent-terracotta); }
+
+/* Editable content area — give it breathing room */
+.col__content {
+  min-height: 44px;
+  outline: none;
+}
+/* Tighten paragraph spacing inside columns */
+.col__content > p { margin: 4px 0; }
+.col__content > h1, .col__content > h2, .col__content > h3 { margin-top: 6px; }
+
 /* ── PDF block — outer wrapper ──────────────────────────────────── */
 .pdf-block-wrap {
   margin: 10px 0;

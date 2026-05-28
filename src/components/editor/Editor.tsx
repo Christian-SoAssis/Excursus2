@@ -18,6 +18,7 @@ import { FocusMode } from './extensions/FocusMode'
 import { PdfBlock } from './extensions/PdfBlock'
 import { MarkdownShortcuts } from './extensions/MarkdownShortcuts'
 import { ToggleBlock } from './extensions/ToggleBlock'
+import { ColumnList, Column } from './extensions/ColumnBlock'
 import { useNotesStore } from '../../store/notes'
 import { useAuthStore } from '../../store/auth'
 import { useSuggestionsStore } from '../../store/suggestions'
@@ -91,6 +92,8 @@ export function Editor({ noteId }: EditorProps) {
       FocusMode,
       MarkdownShortcuts,
       ToggleBlock,
+      ColumnList,
+      Column,
     ],
     onUpdate: ({ editor }) => {
       const json = editor.getJSON()
@@ -302,6 +305,21 @@ export function Editor({ noteId }: EditorProps) {
                 const name = url.split('/').pop() ?? 'documento.pdf'
                 editor.chain().focus().insertContent({ type: 'pdfBlock', attrs: { src: url, name } }).run()
               }
+            } else if (item.type === '2col' || item.type === '3col') {
+              const colCount = item.type === '2col' ? 2 : 3
+              chain.command(({ tr, state }) => {
+                const { $from } = tr.selection
+                const depth = Math.max(1, $from.depth)
+                const { paragraph, column, columnList } = state.schema.nodes
+                if (!paragraph || !column || !columnList) return false
+                const emptyPara = paragraph.createAndFill()!
+                const cols = Array.from({ length: colCount }, () =>
+                  column.createAndFill(null, emptyPara)!
+                )
+                const list = columnList.create(null, cols)
+                tr.replaceWith($from.before(depth), $from.after(depth), list)
+                return true
+              }).run()
             } else {
               chain.setParagraph().run()
             }
