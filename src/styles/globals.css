@@ -566,21 +566,61 @@ input, textarea { font: inherit; color: inherit; }
   outline: 2px solid var(--accent-electric); outline-offset: 2px;
 }
 
-/* PDF block (inline node in editor) */
+/* ── PDF block — outer wrapper ──────────────────────────────────── */
+.pdf-block-wrap {
+  margin: 10px 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;          /* keeps rounded corners on children */
+}
+
+/* ── PDF block — header row ─────────────────────────────────────── */
 .pdf-block {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; margin: 10px 0;
-  border-radius: var(--radius-md);
-  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  padding: 10px 14px;
+  background: var(--bg-surface);
   user-select: none;
 }
+/* Show a separator when the inline viewer is open */
+.pdf-block-wrap--open .pdf-block {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Drag grip — hidden until you hover the block */
+.pdf-block__handle {
+  cursor: grab;
+  color: var(--text-faint);
+  font-size: 16px;
+  flex-shrink: 0;
+  opacity: 0;
+  padding: 0 2px;
+  transition: opacity .15s;
+  user-select: none;
+  line-height: 1;
+}
+.pdf-block-wrap:hover .pdf-block__handle { opacity: 1; }
+.pdf-block__handle:active { cursor: grabbing; }
+
 .pdf-block__icon {
   font-family: var(--font-mono); font-size: 10px; font-weight: 700;
   padding: 3px 6px; border-radius: 4px;
   background: rgb(var(--accent-terracotta-rgb) / 0.15);
   color: var(--accent-terracotta); flex-shrink: 0;
 }
-.pdf-block__name { flex: 1; font-size: 14px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdf-block__name {
+  flex: 1; font-size: 14px; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* "↓ Embutir / ↑ Recolher" toggle */
+.pdf-block__toggle {
+  font-size: 11px; padding: 4px 10px; border-radius: var(--radius-sm);
+  background: transparent; border: 1px solid var(--border-default);
+  color: var(--text-muted); cursor: pointer; flex-shrink: 0;
+  transition: all .12s var(--ease);
+}
+.pdf-block__toggle:hover { color: var(--text-primary); border-color: var(--accent-terracotta); }
+
 .pdf-block__open {
   font-size: 12px; padding: 4px 10px; border-radius: var(--radius-sm);
   background: var(--bg-page); border: 1px solid var(--border-strong);
@@ -594,6 +634,22 @@ input, textarea { font: inherit; color: inherit; }
   transition: color .12s var(--ease);
 }
 .pdf-block__del:hover { color: var(--accent-terracotta); }
+
+/* ── PDF block — inline viewer (resizable) ──────────────────────── */
+.pdf-block__inline {
+  width: 100%;
+  height: 520px;
+  min-height: 200px;
+  resize: vertical;          /* user can drag the bottom edge to resize */
+  overflow: hidden;
+  background: var(--bg-page);
+}
+.pdf-block__inline-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
 
 /* PDF floating viewer */
 .pdf-overlay {

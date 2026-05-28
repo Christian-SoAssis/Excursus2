@@ -6,6 +6,7 @@ export const PdfBlock = Node.create({
   name: 'pdfBlock',
   group: 'block',
   atom: true,
+  draggable: true,
 
   addAttributes() {
     return {
