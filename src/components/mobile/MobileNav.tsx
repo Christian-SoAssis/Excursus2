@@ -2,10 +2,11 @@ import { useUIStore } from '../../store/ui'
 import { useSyncStore } from '../../store/sync'
 
 const TABS = [
-  { id: 'home'     as const, icon: '⌂', label: 'Hoje'       },
-  { id: 'floating' as const, icon: '✎', label: 'Notas'      },
-  { id: 'calendar' as const, icon: '◫', label: 'Calendário' },
-  { id: 'ai'       as const, icon: '◎', label: 'AI'         },
+  { id: 'home'     as const, icon: '⌂', label: 'Hoje'    },
+  { id: 'floating' as const, icon: '✎', label: 'Notas'   },
+  { id: 'graph'    as const, icon: '⬡', label: 'Grafo'   },
+  { id: 'calendar' as const, icon: '◫', label: 'Agenda'  },
+  { id: 'ai'       as const, icon: '◎', label: 'AI'      },
 ]
 
 export function MobileNav({ onOpenSettings }: { onOpenSettings: () => void }) {

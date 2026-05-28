@@ -26,6 +26,7 @@ import { QuickCaptureModal } from './components/ui/QuickCaptureModal'
 import { MobileHeader } from './components/mobile/MobileHeader'
 import { MobileNav } from './components/mobile/MobileNav'
 import { MobileNotesMode } from './components/mobile/MobileNotesMode'
+import { MobileGraphMode } from './components/mobile/MobileGraphMode'
 import { useUIStore } from './store/ui'
 import { useTutorialStore } from './store/tutorial'
 import { useNotesStore } from './store/notes'
@@ -33,6 +34,7 @@ import { useAuthStore } from './store/auth'
 import { useSyncStore } from './store/sync'
 import { usePlatform } from './hooks/usePlatform'
 import { supabaseConfigured } from './lib/supabase'
+import { toast } from 'sonner'
 
 export function App() {
   const [settingsOpen,   setSettingsOpen]   = useState(false)
@@ -166,17 +168,48 @@ export function App() {
   }
 
   const renderMobileMode = () => {
-    // Modes not supported on mobile — redirect to home
-    if (mode === 'spatial' || mode === 'graph' || mode === 'zen') {
-      setMode('home')
-      return <HomeMode />
-    }
+    // Spatial não tem versão mobile — redireciona silenciosamente
+    if (mode === 'spatial') { setMode('home'); return <HomeMode /> }
     if (mode === 'home')     return <HomeMode />
     if (mode === 'calendar') return <CalendarMode />
     if (mode === 'ai')       return <AiMode />
-    // 'floating' → dedicated mobile notes UI
+    if (mode === 'zen')      return <ZenMode />
+    if (mode === 'graph')    return <MobileGraphMode />
+    // 'floating' → UI mobile de notas
     return <MobileNotesMode />
   }
+
+  // ── Botão físico de voltar (Android / PWA) ─────────────────────
+  useEffect(() => {
+    if (!isMobile) return
+
+    // Garante que sempre há um estado na pilha para interceptarmos
+    window.history.pushState({ excursus: true }, '')
+
+    let lastBackPress = 0
+
+    const handler = () => {
+      // Se não estamos na home, volta para home
+      if (useUIStore.getState().mode !== 'home') {
+        useUIStore.getState().setMode('home')
+        window.history.pushState({ excursus: true }, '')
+        return
+      }
+
+      // Estamos na home — padrão "toque duas vezes para sair"
+      const now = Date.now()
+      if (now - lastBackPress < 2000) {
+        // Segunda vez dentro de 2 s → deixa o browser sair normalmente
+        return
+      }
+      lastBackPress = now
+      toast('Pressione voltar novamente para sair', { duration: 2000 })
+      window.history.pushState({ excursus: true }, '')
+    }
+
+    window.addEventListener('popstate', handler)
+    return () => window.removeEventListener('popstate', handler)
+  }, [isMobile])
 
   if (!supabaseConfigured) {
     return (

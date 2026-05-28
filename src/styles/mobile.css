@@ -243,15 +243,38 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  .mob-editor__title {
+  /* Título editável no editor mobile */
+  .mob-editor__title-input {
     flex: 1;
     font-size: 14px;
     font-weight: 500;
     color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    background: transparent;
+    border: none;
+    outline: none;
+    min-width: 0;
+    padding: 4px 6px;
+    border-radius: var(--radius-xs);
+    transition: background 0.15s;
   }
+  .mob-editor__title-input:focus {
+    background: var(--bg-elevated);
+  }
+  .mob-editor__title-input::placeholder { color: var(--text-faint); }
+
+  /* Botão Home dentro do editor */
+  .mob-editor__home-btn {
+    font-size: 18px;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 4px;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    line-height: 1;
+  }
+  .mob-editor__home-btn:active { color: var(--accent-terracotta); }
 
   .mob-editor__body {
     flex: 1;
@@ -288,5 +311,213 @@
 
   /* CalendarMode full width */
   .cal-page { padding: 12px !important; }
+
+  /* ── ZenMode no mobile ── */
+  .zen { padding: 0 !important; }
+  .zen__body { padding: 16px 16px 80px !important; max-width: 100% !important; }
+  .zen__footer { padding: 10px 16px !important; }
+
+  /* ── MobileGraphMode ── */
+  .mob-graph {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .mob-graph__loading {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 14px;
+  }
+
+  .mob-graph__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    background: var(--bg-page);
+    z-index: 10;
+  }
+
+  .mob-graph__search {
+    flex: 1;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 9px 13px;
+    font-size: 15px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .mob-graph__search:focus  { border-color: var(--accent-electric); }
+  .mob-graph__search::placeholder { color: var(--text-faint); }
+
+  .mob-graph__total {
+    font-size: 11px;
+    color: var(--text-faint);
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+  }
+
+  .mob-graph__list { flex: 1; overflow-y: auto; }
+
+  .mob-graph__item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: pointer;
+    gap: 10px;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.1s;
+  }
+  .mob-graph__item:active { background: var(--bg-surface); }
+
+  /* Barra de conexões — fundo decorativo */
+  .mob-graph__item-bar {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: rgb(var(--accent-electric-rgb) / 0.07);
+    pointer-events: none;
+    transition: width 0.3s var(--ease);
+  }
+
+  .mob-graph__item-content { flex: 1; min-width: 0; position: relative; }
+
+  .mob-graph__item-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mob-graph__item-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .mob-graph__item-links {
+    color: var(--accent-electric);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    opacity: 0.85;
+  }
+
+  .mob-graph__item-arrow {
+    font-size: 18px;
+    color: var(--text-faint);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .mob-graph__folder-pill {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--text-muted);
+  }
+  .mob-graph__folder-pill--sm { font-size: 10px; padding: 0 5px; }
+
+  .mob-graph__empty {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* Vista de detalhe */
+  .mob-graph__detail-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    background: var(--bg-page);
+    z-index: 10;
+  }
+
+  .mob-graph__back {
+    font-size: 14px;
+    color: var(--accent-electric);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 0;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mob-graph__detail-title {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mob-graph__detail-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px 6px;
+  }
+
+  .mob-graph__conn-count {
+    font-size: 12px;
+    color: var(--accent-electric);
+    font-family: var(--font-mono);
+    opacity: 0.85;
+  }
+
+  .mob-graph__section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    padding: 12px 16px 4px;
+  }
+
+  .mob-graph__open-btn {
+    display: block;
+    margin: 16px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
+    color: var(--accent-terracotta);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .mob-graph__open-btn:active { background: var(--bg-glass); }
 
 }
