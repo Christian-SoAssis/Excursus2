@@ -5,7 +5,7 @@ import Underline from '@tiptap/extension-underline'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
-import Image from '@tiptap/extension-image'
+import { StorageImage } from './extensions/StorageImage'
 import TaskList from '@tiptap/extension-task-list'
 import { CustomTaskItem } from './extensions/CustomTaskItem'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
@@ -77,7 +77,7 @@ export function Editor({ noteId }: EditorProps) {
       TextStyle,
       Color,
       Highlight.configure({ multicolor: true }),
-      Image.configure({ allowBase64: false }),
+      StorageImage.configure({ allowBase64: false }),
       TaskList,
       CustomTaskItem.configure({ nested: true }),
       Table.configure({ resizable: false }),
@@ -185,11 +185,11 @@ export function Editor({ noteId }: EditorProps) {
     const files = Array.from(e.dataTransfer.files)
     for (const file of files) {
       try {
-        const url = await uploadFile(user.id, file)
+        const { url, path } = await uploadFile(user.id, file)
         if (file.type.startsWith('image/')) {
-          editor.chain().focus().setImage({ src: url, alt: file.name }).run()
+          editor.chain().focus().insertContent({ type: 'image', attrs: { src: url, alt: file.name, path } }).run()
         } else if (file.type === 'application/pdf') {
-          editor.chain().focus().insertContent({ type: 'pdfBlock', attrs: { src: url, name: file.name } }).run()
+          editor.chain().focus().insertContent({ type: 'pdfBlock', attrs: { src: url, name: file.name, path } }).run()
         }
       } catch {
         toast.error(`Erro ao fazer upload de ${file.name}`)
@@ -214,8 +214,8 @@ export function Editor({ noteId }: EditorProps) {
           const file = e.target.files?.[0]
           if (!file || !user) return
           try {
-            const url = await uploadFile(user.id, file)
-            editor?.chain().focus().setImage({ src: url, alt: file.name }).run()
+            const { url, path } = await uploadFile(user.id, file)
+            editor?.chain().focus().insertContent({ type: 'image', attrs: { src: url, alt: file.name, path } }).run()
           } catch { window.alert('Erro ao fazer upload da imagem.') }
           e.target.value = ''
         }}
@@ -226,8 +226,8 @@ export function Editor({ noteId }: EditorProps) {
           const file = e.target.files?.[0]
           if (!file || !user) return
           try {
-            const url = await uploadFile(user.id, file)
-            editor?.chain().focus().insertContent({ type: 'pdfBlock', attrs: { src: url, name: file.name } }).run()
+            const { url, path } = await uploadFile(user.id, file)
+            editor?.chain().focus().insertContent({ type: 'pdfBlock', attrs: { src: url, name: file.name, path } }).run()
           } catch { window.alert('Erro ao fazer upload do PDF.') }
           e.target.value = ''
         }}

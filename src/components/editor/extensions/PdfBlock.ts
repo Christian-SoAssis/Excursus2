@@ -11,6 +11,8 @@ export const PdfBlock = Node.create({
     return {
       src:  { default: '' },
       name: { default: 'documento.pdf' },
+      /** Storage path for signed-URL renewal — empty on notes created before this feature */
+      path: { default: '' },
     }
   },
 
