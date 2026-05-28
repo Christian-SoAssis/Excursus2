@@ -567,6 +567,39 @@ input, textarea { font: inherit; color: inherit; }
 }
 
 /* =================================================================
+   Global drag handle (GlobalDragHandle extension)
+   Floats to the left of any hovered block; hidden on mobile.
+================================================================= */
+.global-drag-handle {
+  position: fixed;
+  width: 20px;
+  height: 24px;
+  display: none;            /* shown via JS: style.display = 'flex' */
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  cursor: grab;
+  font-size: 15px;
+  line-height: 1;
+  z-index: 500;
+  user-select: none;
+  border-radius: 4px;
+  opacity: 0.35;
+  transition: opacity .15s, background .15s;
+  pointer-events: auto;
+}
+.global-drag-handle:hover {
+  opacity: 1;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+.global-drag-handle:active { cursor: grabbing; }
+
+@media (max-width: 767px) {
+  .global-drag-handle { display: none !important; }
+}
+
+/* =================================================================
    Column layout (ColumnList + Column nodes)
 ================================================================= */
 

@@ -2,9 +2,13 @@
  * ColumnBlock — two TipTap nodes for multi-column layouts.
  *
  *  ColumnList  group:'block'   content:'column+'
- *    Column    (no group)      content:'block+'   isolating:true
+ *    Column    (no group)      content:'block+'
  *
- * The user creates them via the slash menu (/2 colunas, /3 colunas).
+ * isolating is intentionally FALSE on Column so that ProseMirror's
+ * drag-and-drop can insert dropped content inside a column.
+ * (isolating:true would create slice boundaries that reject drops.)
+ *
+ * The user creates columns via the slash menu (/2 colunas, /3 colunas).
  * Each Column accepts any block: paragraphs, headings, PDFs, images, etc.
  */
 import { Node, mergeAttributes } from '@tiptap/core'
@@ -37,7 +41,7 @@ export const Column = Node.create({
   name: 'column',
   group: '',       // only valid inside a ColumnList
   content: 'block+',
-  isolating: true, // keeps cursor & selection inside the column
+  isolating: false, // must be false so drag-drop can insert content into columns
 
   parseHTML() {
     return [{ tag: 'div[data-type="column"]' }]

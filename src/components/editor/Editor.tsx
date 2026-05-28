@@ -19,6 +19,7 @@ import { PdfBlock } from './extensions/PdfBlock'
 import { MarkdownShortcuts } from './extensions/MarkdownShortcuts'
 import { ToggleBlock } from './extensions/ToggleBlock'
 import { ColumnList, Column } from './extensions/ColumnBlock'
+import { GlobalDragHandle } from './extensions/GlobalDragHandle'
 import { useNotesStore } from '../../store/notes'
 import { useAuthStore } from '../../store/auth'
 import { useSuggestionsStore } from '../../store/suggestions'
@@ -94,6 +95,7 @@ export function Editor({ noteId }: EditorProps) {
       ToggleBlock,
       ColumnList,
       Column,
+      GlobalDragHandle,
     ],
     onUpdate: ({ editor }) => {
       const json = editor.getJSON()
