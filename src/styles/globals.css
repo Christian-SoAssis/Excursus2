@@ -410,39 +410,53 @@ input, textarea { font: inherit; color: inherit; }
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   overflow: hidden;
-  margin: 4px 0;
+  margin: 6px 0;
   background: var(--bg-surface);
-  box-shadow: var(--shadow-sm, none);
+  transition: border-color 0.15s;
+}
+
+.tgl:focus-within {
+  border-color: var(--border-default);
 }
 
 .tgl__header {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 14px 10px 10px;
   cursor: text;
+  transition: background 0.12s;
+}
+
+.tgl__header:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme='light'] .tgl__header:hover {
+  background: rgba(0, 0, 0, 0.02);
 }
 
 /* ── Arrow toggle button ── */
 .tgl__arrow {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 8px;
+  font-size: 9px;
   color: var(--text-muted);
   background: transparent;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 0.12s, color 0.12s, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
 .tgl__arrow:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
 }
 
@@ -451,32 +465,35 @@ input, textarea { font: inherit; color: inherit; }
 }
 
 [data-theme='light'] .tgl__arrow:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.07);
 }
 
-/* ── Editable title ── */
+/* ── Editable title — matches editor body font ── */
 .tgl__title {
   flex: 1;
-  font-size: 14px;
+  font-family: var(--font-serif);
+  font-size: 18px;
   font-weight: 500;
   color: var(--text-primary);
   outline: none;
   min-height: 1.4em;
-  line-height: 1.5;
+  line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
+  padding-top: 1px;
 }
 
 .tgl__title:empty::before {
   content: attr(data-placeholder);
   color: var(--text-faint);
   pointer-events: none;
+  font-weight: 400;
 }
 
 /* ── Body (collapsible) ── */
 .tgl__body {
   border-top: 1px solid var(--border-subtle);
-  animation: tgl-open 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: tgl-open 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .tgl__body--closed {
@@ -484,13 +501,13 @@ input, textarea { font: inherit; color: inherit; }
 }
 
 @keyframes tgl-open {
-  from { opacity: 0; transform: translateY(-6px); }
+  from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Inner content area ── */
 .tgl__content {
-  padding: 6px 12px 10px 40px; /* left indent aligns with the title */
+  padding: 4px 14px 12px 38px;
 }
 
 /* Nested toggles: tighten spacing */

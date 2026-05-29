@@ -19,8 +19,9 @@ export const ToggleBlock = Node.create({
 
   addAttributes() {
     return {
-      open:  { default: true },
-      title: { default: '' },
+      open:       { default: true },
+      title:      { default: '' },
+      focusTitle: { default: false },
     }
   },
 
@@ -61,15 +62,13 @@ export const ToggleBlock = Node.create({
           if ($from.parent.type.name !== 'paragraph') return
           const nodeStart = $from.before($from.depth)
           const nodeEnd   = $from.after($from.depth)
-          const node = type.createAndFill({ open: true, title: '' })
+          const node = type.createAndFill({ open: true, title: '', focusTitle: true })
           if (!node) return
           tr.replaceWith(nodeStart, nodeEnd, node)
-          // Move cursor inside the toggle body:
-          // nodeStart+1 = inside toggleBlock (after its open token)
-          // nodeStart+2 = inside first child block (after its open token)
-          const bodyPos = nodeStart + 2
-          if (bodyPos <= tr.doc.content.size) {
-            tr.setSelection(TextSelection.near(tr.doc.resolve(bodyPos)))
+          // Place PM cursor just outside the toggle (title gets DOM focus via focusTitle attr)
+          const afterPos = nodeStart + 1
+          if (afterPos <= tr.doc.content.size) {
+            tr.setSelection(TextSelection.near(tr.doc.resolve(afterPos)))
           }
         },
       }),
@@ -89,7 +88,7 @@ export const ToggleBlock = Node.create({
           nodeStart,
           nodeStart + $from.parent.nodeSize,
           this.type.create(
-            { open: true, title },
+            { open: true, title, focusTitle: true },
             state.schema.nodes.paragraph.create(),
           ),
         )
