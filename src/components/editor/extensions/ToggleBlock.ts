@@ -3,6 +3,24 @@ import { TextSelection } from '@tiptap/pm/state'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import { ToggleBlockView } from '../../ui/ToggleBlockView'
 
+/** Focus the .tgl__title inside the toggle node at `pos` after the next paint. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function scheduleTitleFocus(view: any, pos: number) {
+  requestAnimationFrame(() => {
+    const dom = view.nodeDOM(pos) as HTMLElement | null
+    const titleEl = dom?.querySelector?.('.tgl__title') as HTMLElement | null
+    if (!titleEl) return
+    titleEl.focus()
+    // Place caret at the end
+    const range = document.createRange()
+    range.selectNodeContents(titleEl)
+    range.collapse(false)
+    const sel = window.getSelection()
+    sel?.removeAllRanges()
+    sel?.addRange(range)
+  })
+}
+
 export const ToggleBlock = Node.create({
   name: 'toggleBlock',
   group: 'block',
@@ -19,9 +37,8 @@ export const ToggleBlock = Node.create({
 
   addAttributes() {
     return {
-      open:       { default: true },
-      title:      { default: '' },
-      focusTitle: { default: false },
+      open:  { default: true },
+      title: { default: '' },
     }
   },
 
@@ -52,6 +69,7 @@ export const ToggleBlock = Node.create({
    */
   addInputRules() {
     const type = this.type
+    const getView = () => this.editor.view
     return [
       new InputRule({
         find: /^> $/,
@@ -62,38 +80,43 @@ export const ToggleBlock = Node.create({
           if ($from.parent.type.name !== 'paragraph') return
           const nodeStart = $from.before($from.depth)
           const nodeEnd   = $from.after($from.depth)
-          const node = type.createAndFill({ open: true, title: '', focusTitle: true })
+          const node = type.createAndFill({ open: true, title: '' })
           if (!node) return
           tr.replaceWith(nodeStart, nodeEnd, node)
-          // Place PM cursor just outside the toggle (title gets DOM focus via focusTitle attr)
-          const afterPos = nodeStart + 1
-          if (afterPos <= tr.doc.content.size) {
-            tr.setSelection(TextSelection.near(tr.doc.resolve(afterPos)))
+          // Keep PM cursor inside the toggle body (fallback)
+          const bodyPos = nodeStart + 2
+          if (bodyPos <= tr.doc.content.size) {
+            tr.setSelection(TextSelection.near(tr.doc.resolve(bodyPos)))
           }
+          // Focus the title after the DOM updates
+          scheduleTitleFocus(getView(), nodeStart)
         },
       }),
     ]
   },
 
   addKeyboardShortcuts() {
-    /** Replace the current paragraph with a toggleBlock. */
+    /** Replace the current paragraph with a toggleBlock and focus its title. */
     const createToggle = (title: string): boolean => {
       const { state } = this.editor
       const { $from }  = state.selection
       if ($from.parent.type.name !== 'paragraph') return false
 
       const nodeStart = $from.before($from.depth)
-      return this.editor.commands.command(({ tr }) => {
+      const ok = this.editor.commands.command(({ tr }) => {
         tr.replaceWith(
           nodeStart,
           nodeStart + $from.parent.nodeSize,
           this.type.create(
-            { open: true, title, focusTitle: true },
+            { open: true, title },
             state.schema.nodes.paragraph.create(),
           ),
         )
         return true
       })
+
+      if (ok) scheduleTitleFocus(this.editor.view, nodeStart)
+      return ok
     }
 
     return {

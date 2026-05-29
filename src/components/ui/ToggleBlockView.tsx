@@ -8,20 +8,8 @@ export function ToggleBlockView({ node, updateAttributes, getPos, editor }: Node
   // Seed the editable div once on mount.
   // Using a ref + textContent avoids React re-renders clobbering the cursor.
   useEffect(() => {
-    if (!titleRef.current) return
-    titleRef.current.textContent = node.attrs.title ?? ''
-
-    // If created fresh, focus the title and clear the flag.
-    if (node.attrs.focusTitle) {
-      titleRef.current.focus()
-      // Place caret at end of title text
-      const range = document.createRange()
-      range.selectNodeContents(titleRef.current)
-      range.collapse(false)
-      const sel = window.getSelection()
-      sel?.removeAllRanges()
-      sel?.addRange(range)
-      updateAttributes({ focusTitle: false })
+    if (titleRef.current) {
+      titleRef.current.textContent = node.attrs.title ?? ''
     }
   }, []) // intentionally empty — mount only
 
